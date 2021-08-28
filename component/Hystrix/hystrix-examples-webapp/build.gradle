@@ -1,0 +1,13 @@
+apply plugin: 'war'
+//apply plugin: 'jetty'
+
+dependencies {
+    compile project(':hystrix-core')
+    compile project(':hystrix-examples')
+    compile project(':hystrix-request-servlet')
+    compile project(':hystrix-metrics-event-stream')
+}
+
+//jettyRun {
+//	httpPort = 8989
+//}
