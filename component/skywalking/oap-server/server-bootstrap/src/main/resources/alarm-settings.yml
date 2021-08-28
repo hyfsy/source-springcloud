@@ -1,0 +1,123 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Sample alarm rules.
+rules:
+  # Rule unique name, must be ended with `_rule`.
+  service_resp_time_rule:
+    metrics-name: service_resp_time
+    op: ">"
+    threshold: 1000
+    period: 10
+    count: 3
+    silence-period: 5
+    message: Response time of service {name} is more than 1000ms in 3 minutes of last 10 minutes.
+  service_sla_short_rule:
+    # Metrics value need to be long, double or int
+    metrics-name: service_sla_short
+    op: "<"
+    threshold: 9500
+    # The length of time to evaluate the metrics
+    period: 1
+    # How many times after the metrics match the condition, will trigger alarm
+    count: 1
+    # How many times of checks, the alarm keeps silence after alarm triggered, default as same as period.
+    silence-period: 1
+    message: Successful rate of service {name} is lower than 95% in 1 minutes of last 1 minutes - short.
+  service_sla_rule:
+    # Metrics value need to be long, double or int
+    metrics-name: service_sla
+    op: "<"
+    threshold: 8000
+    # The length of time to evaluate the metrics
+    period: 10
+    # How many times after the metrics match the condition, will trigger alarm
+    count: 2
+    # How many times of checks, the alarm keeps silence after alarm triggered, default as same as period.
+    silence-period: 3
+    message: Successful rate of service {name} is lower than 80% in 2 minutes of last 10 minutes
+    tags:
+      - level: WARNING
+      - key: level
+        value: WARNING
+  service_resp_time_percentile_rule:
+    # Metrics value need to be long, double or int
+    metrics-name: service_percentile
+    op: ">"
+    threshold: 1000,1000,1000,1000,1000
+    period: 10
+    count: 3
+    silence-period: 5
+    message: Percentile response time of service {name} alarm in 3 minutes of last 10 minutes, due to more than one condition of p50 > 1000, p75 > 1000, p90 > 1000, p95 > 1000, p99 > 1000
+  service_instance_resp_time_rule:
+    metrics-name: service_instance_resp_time
+    op: ">"
+    threshold: 1000
+    period: 10
+    count: 2
+    silence-period: 5
+    message: Response time of service instance {name} is more than 1000ms in 2 minutes of last 10 minutes
+  database_access_resp_time_rule:
+    metrics-name: database_access_resp_time
+    threshold: 1000
+    op: ">"
+    period: 10
+    count: 2
+    message: Response time of database access {name} is more than 1000ms in 2 minutes of last 10 minutes
+  endpoint_relation_resp_time_rule:
+    metrics-name: endpoint_relation_resp_time
+    threshold: 1000
+    op: ">"
+    period: 10
+    count: 2
+    message: Response time of endpoint relation {name} is more than 1000ms in 2 minutes of last 10 minutes
+#  Active endpoint related metrics alarm will cost more memory than service and service instance metrics alarm.
+#  Because the number of endpoint is much more than service and instance.
+#
+#  endpoint_avg_rule:
+#    metrics-name: endpoint_avg
+#    op: ">"
+#    threshold: 1000
+#    period: 10
+#    count: 2
+#    silence-period: 5
+#    message: Response time of endpoint {name} is more than 1000ms in 2 minutes of last 10 minutes
+
+# webhooks:
+#   - http://localhost:8002/alarm/email
+#   - http://localhost:8002/alarm/dingTalk
+
+
+
+# dingtalkHooks:
+#   textTemplate: |-
+#     {
+#       "msgtype": "text",
+#       "text": {
+#         "content": "Apache SkyWalking Alarm: \n %s."
+#       }
+#     }
+#   webhooks:
+#     - url: https://oapi.dingtalk.com/robot/send?access_token=06f31e2568cf65fcb700c838c6bd71e5efebc6edffb412f7cbd0788661353f64
+#       secret: SEC1735dbc5bb742da71b0a3a1867103dd57a1d06ea9e9e30d646561f61d1c23d5e
+#     - url: https://oapi.dingtalk.com/robot/send?access_token=913be12f3e44c10bfcdcf706796c962970f8dba01e0f697788e3e834360da584
+#       secret: SEC9bdc046f42592c9dee04ceac70ec6eea2493baef18db6e244b23ec33da35de15
+
+
+
+
+
+
