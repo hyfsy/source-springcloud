@@ -1,0 +1,7 @@
+a:
+  b:
+    c: 2
+    d: 1
+server:
+  servlet:
+    context-path: /bootstrap

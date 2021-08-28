@@ -1,0 +1,134 @@
+server:
+  port: 8082
+  servlet:
+    context-path: /
+
+spring:
+  main:
+    web-application-type: none
+  boot:
+    enableautoconfiguration: true # 启用自动装配，优先
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.web.servlet.DispatcherServletAutoConfiguration
+      - org.springframework.boot.autoconfigure.web.servlet.ServletWebServerFactoryAutoConfiguration
+      - org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration
+      - org.springframework.boot.autoconfigure.web.servlet.HttpEncodingAutoConfiguration
+      - org.springframework.boot.autoconfigure.web.servlet.MultipartAutoConfiguration
+      - org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration
+      - org.springframework.boot.autoconfigure.web.client.RestTemplateAutoConfiguration
+      - org.springframework.boot.autoconfigure.web.embedded.EmbeddedWebServerFactoryCustomizerAutoConfiguration
+  cloud:
+    bootstrap: # bootstrap属性放此处无效，因为其初始化时还未解析该文件，可通过添加spring-cloud-starter-bootstrap依赖激活
+      enabled: true # 是否启用
+      use-legacy-processing: true # 任意一个为true都会启用
+      name: abc # 文件名
+      location: E:// # 文件路径
+      additional-location: # 日志额外路径
+      sources: # @BootstrapConfiguration属性源，多个,分隔
+    refresh:
+      enabled: true # 启用配置的刷新
+      additional-property-sources-to-retain: # 刷新属性源时额外拷贝的环境属性（PropertiesSource名称）
+        - a
+        - b
+        - c
+#      never-refreshable: # 不会刷新的类
+#      extra-refreshable:  # 指定额外要刷新的类，和 @RefreshScope 等效
+    compatibility-verifier:
+      enabled: true # 启用兼容校验
+      compatible-boot-versions: # 兼容的SpringBoot版本
+        - 2.4.x
+        - 2.5.x
+    util:
+      enabled: true # 启用cloud相关工具类
+    inetutils:
+      default-hostname: localhost # 找不到网卡的默认值
+      default-ip-address: 127.0.0.1
+      timeout-seconds: 1 # InetAddress::getHostname查找网卡的超时时间
+      use-only-site-local-interfaces: false
+      ignored-interfaces:
+        - 128.0.0.1
+        - dock0
+        - veth.*
+      preferred-networks:
+        - 127.0.0.1
+    discovery: # 服务发现的注册实例信息
+      enabled: true # 两个启用条件必须同时满足
+      blocking:
+        enabled: true
+      reactive:
+        enabled: false
+      client:
+        simple:
+          instances:
+            myservice:
+              - service-id: service_aaa # 构造完毕会被 key 覆盖
+                instance-id: instance_aaa
+                host: localhost
+                port: 8080
+                secure: false
+                metadata:
+                  - aaa: bbb
+                  - ccc: ddd
+              - service-id: service_bbb
+                uri: http://bbb:8080
+            second-service:
+              - service-id: service_ccc
+                uri: http://ccc:8080
+        health-indicator:
+          enabled: true # 启用服务的健康检查
+          use-services-query: true # 是否使用重量级的 DiscoveryClient#getServices 方法检查健康
+          include-description: true # 检查后的信息是否包括客户端的描述信息
+        composite-indicator:
+          enabled: true
+    features:
+      enabled: true # 启用特色端点，展示一些指定类的信息？
+    hypermedia: # hypermedia的url刷新
+      refresh:
+        initial-delay: 1 # 初始化时延迟1秒
+        fixed-delay: 5 # 每隔5秒调度刷新
+    loadbalancer:
+      retry:
+        enabled: true # 启用负载均衡的重试机制
+        retry-on-all-operations: false # 在所有请求上重试，否则只能在GET请求上重试
+        max-retries-on-same-service-instance: 0 # 相同服务的重试次数
+        max-retries-on-next-service-instance: 1 # 下个服务的重试次数
+        retryable-status-codes: # 请求没抛异常时的返回状态码是否需要重试
+          - 404
+          - 403
+      health-check:
+        initial-delay: 0
+        interval: 25
+        refetch-instances: false # 是否刷新实例列表，内部自动进行一次健康检查
+        refetch-instances-interval: 25
+        repeat-health-check: true # 重复检查，启用刷新时可改为false
+        path:
+          - default: /actuator/health
+          - service-id: /health-check-request-uri
+      sticky-session: # 会话黏连 黏性session
+        add-service-instance-cookie: true # 是否添加instance-id到请求的cookie中
+        instance-id-cookie-name: sc-lb-instance-id # cookie名称
+      cache: # 负载均衡缓存，@see CachingServiceInstanceListSupplier
+        enabled: true # 启用缓存，默认缓存（需要stoyanr-evictor依赖） 或 caffeine
+        ttl: 35s # 缓存时间
+        capacity: 256 # 缓存容量
+    httpclientfactories:
+      apache: # apache-httpclient 客户端
+        enabled: true
+      ok: # okhttp3 客户端
+        enabled: true
+    service-registry: # 抽象出 AutoServiceRegistration，供各个服务注册框架实现
+      auto-registration:
+        enabled: true # 启用服务的自动注册，会自动注册 DiscoveryClient 实现
+        fail-fast: false # 当没有 AutoServiceRegistration 时，快速失败
+        register-management: true # 将management端点注册进服务中
+  config:
+    use-legacy-processing: false
+    allow-override: false # 是否允许BootstrapConfiguration获取的所有属性覆盖原本环境的属性
+    override-none: false # allow-override为true的情况下，是否什么都不覆盖的添加到环境中，优先
+    override-system-properties: true # allow-override为true的情况下，是否覆盖系统属性，之后
+  profiles:
+    active:
+      - dev
+      - test
+    include: a,b,c
