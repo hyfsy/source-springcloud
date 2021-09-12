@@ -5,8 +5,8 @@ spring:
   application:
     name: nacos-service-provider-seata-order
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/seata?serverTimezone=UTC&useSSL=true&useUnicode=true&characterEncoding=UTF-8&nullNamePatternMatchesAll=true&allowMultiQueries=true
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/seata?serverTimezone=UTC&useSSL=false&useUnicode=true&characterEncoding=UTF-8&nullNamePatternMatchesAll=true&allowMultiQueries=true
     username: root
     password: hyflearn
   cloud:
@@ -29,7 +29,7 @@ seata:
   application-id: application-id-order
   tx-service-group: hyf_tc_group
   enable-auto-data-source-proxy: true
-  data-source-proxy-mode: AT
+  data-source-proxy-mode: XA
   use-jdk-proxy: false
   excludes-for-auto-proxying: firstClassNameForExclude,secondClassNameForExclude
   client:

@@ -171,6 +171,7 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
      * @return if true retry commit or roll back
      */
     public boolean isDeadSession() {
+        // 2m10s
         return (System.currentTimeMillis() - beginTime) > RETRY_DEAD_THRESHOLD;
     }
 
@@ -227,6 +228,7 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
 
     public void clean() throws TransactionException {
         if (this.hasATBranch()) {
+            // clean lock_table
             if (!LockerManagerFactory.getLockManager().releaseGlobalSessionLock(this)) {
                 throw new TransactionException("UnLock globalSession error, xid = " + this.xid);
             }
@@ -239,7 +241,9 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
      * @throws TransactionException the transaction exception
      */
     public void closeAndClean() throws TransactionException {
+        // inactive
         close();
+        // clean lock_table
         clean();
     }
 
@@ -264,6 +268,7 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
     @Override
     public void addBranch(BranchSession branchSession) throws TransactionException {
         for (SessionLifecycleListener lifecycleListener : lifecycleListeners) {
+            // add branch_table
             lifecycleListener.onAddBranch(this, branchSession);
         }
         branchSession.setStatus(BranchStatus.Registered);
@@ -274,11 +279,14 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
     public void removeBranch(BranchSession branchSession) throws TransactionException {
         // do not unlock if global status in (Committing, CommitRetrying, AsyncCommitting),
         // because it's already unlocked in 'DefaultCore.commit()'
+        // 提交阶段不需要再检查锁了
+        // lock_table
         if (status != Committing && status != CommitRetrying && status != AsyncCommitting) {
             if (!branchSession.unlock()) {
                 throw new TransactionException("Unlock branch lock failed, xid = " + this.xid + ", branchId = " + branchSession.getBranchId());
             }
         }
+        // branch_table
         for (SessionLifecycleListener lifecycleListener : lifecycleListeners) {
             lifecycleListener.onRemoveBranch(this, branchSession);
         }
@@ -677,7 +685,9 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
 
     public void asyncCommit() throws TransactionException {
         this.addSessionLifecycleListener(SessionHolder.getAsyncCommittingSessionManager());
+        // 方便获取相关状态的所有会话
         SessionHolder.getAsyncCommittingSessionManager().addGlobalSession(this);
+        // 仅更新个状态
         this.changeStatus(GlobalStatus.AsyncCommitting);
     }
 

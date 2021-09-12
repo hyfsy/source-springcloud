@@ -12,6 +12,7 @@
         <!--<module>seata-store</module>-->
         <module>seata-order</module>
         <module>seata-money</module>
+        <module>seata-xa</module>
     </modules>
 
     <properties>

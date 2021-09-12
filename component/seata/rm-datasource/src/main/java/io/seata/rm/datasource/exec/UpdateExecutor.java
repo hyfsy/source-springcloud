@@ -72,6 +72,7 @@ public class UpdateExecutor<T, S extends Statement> extends AbstractDMLBaseExecu
         return buildTableRecords(tmeta, selectSQL, paramAppenderList);
     }
 
+    // select * from xxx where id = ?
     private String buildBeforeImageSQL(TableMeta tableMeta, ArrayList<List<Object>> paramAppenderList) {
         SQLUpdateRecognizer recognizer = (SQLUpdateRecognizer) sqlRecognizer;
         List<String> updateColumns = recognizer.getUpdateColumns();
@@ -92,6 +93,7 @@ public class UpdateExecutor<T, S extends Statement> extends AbstractDMLBaseExecu
         }
         suffix.append(" FOR UPDATE");
         StringJoiner selectSQLJoin = new StringJoiner(", ", prefix.toString(), suffix.toString());
+        // 只查询出会更新的行
         if (ONLY_CARE_UPDATE_COLUMNS) {
             if (!containsPK(updateColumns)) {
                 selectSQLJoin.add(getColumnNamesInSQL(tableMeta.getEscapePkNameList(getDbType())));
@@ -124,6 +126,7 @@ public class UpdateExecutor<T, S extends Statement> extends AbstractDMLBaseExecu
         }
     }
 
+    // select * from xxx where id in ( (?) )
     private String buildAfterImageSQL(TableMeta tableMeta, TableRecords beforeImage) throws SQLException {
         StringBuilder prefix = new StringBuilder("SELECT ");
         String whereSql = SqlGenerateUtils.buildWhereConditionByPKs(tableMeta.getPrimaryKeyOnlyName(), beforeImage.pkRows().size(), getDbType());

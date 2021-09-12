@@ -43,6 +43,7 @@ public class TransactionPropagationInterceptor extends HandlerInterceptorAdapter
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("xid in RootContext[{}] xid in HttpContext[{}]", xid, rpcXid);
         }
+        // 本地没有，请求里有，进行绑定
         if (xid == null && rpcXid != null) {
             RootContext.bind(rpcXid);
             if (LOGGER.isDebugEnabled()) {
@@ -56,6 +57,7 @@ public class TransactionPropagationInterceptor extends HandlerInterceptorAdapter
     @Override
     public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler,
         ModelAndView modelAndView) {
+        // 有xid，进行清除
         if (RootContext.inGlobalTransaction()) {
             XidResource.cleanXid(request.getHeader(RootContext.KEY_XID));
         }

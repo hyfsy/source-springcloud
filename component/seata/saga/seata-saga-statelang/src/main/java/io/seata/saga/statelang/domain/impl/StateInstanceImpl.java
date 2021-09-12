@@ -36,10 +36,12 @@ public class StateInstanceImpl implements StateInstance {
     private String serviceName;
     private String serviceMethod;
     private String serviceType;
+    // 表达式用 $Sequence.xxx表示，会将解析后的值变为该对象供用户使用
     private String businessKey;
     private Date gmtStarted;
     private Date gmtUpdated;
     private Date gmtEnd;
+    // 状态日志是否更新
     private boolean isForUpdate;
     private Exception exception;
     private Object serializedException;
@@ -48,10 +50,14 @@ public class StateInstanceImpl implements StateInstance {
     private Object outputParams;
     private Object serializedOutputParams;
     private ExecutionStatus status;
+    // 补偿的状态会有，表示要补偿的那个状态id
     private String stateIdCompensatedFor;
+    // 当前状态是由哪个状态重试生成的，存储的是前一个失败状态的id
     private String stateIdRetriedFor;
+    // 当前状态对应的补偿状态
     private StateInstance compensationState;
     private StateMachineInstance stateMachineInstance;
+    // 运行时需要忽略的，一般是过期的状态，因为已经有新的状态存在了
     private boolean ignoreStatus;
 
     @Override

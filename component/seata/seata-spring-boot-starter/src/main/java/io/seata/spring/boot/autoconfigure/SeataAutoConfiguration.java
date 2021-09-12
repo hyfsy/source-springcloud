@@ -39,12 +39,14 @@ import static io.seata.spring.boot.autoconfigure.StarterConstants.SEATA_PREFIX;
 public class SeataAutoConfiguration {
     private static final Logger LOGGER = LoggerFactory.getLogger(SeataAutoConfiguration.class);
 
+    // 事务失败的检查处理
     @Bean(BEAN_NAME_FAILURE_HANDLER)
     @ConditionalOnMissingBean(FailureHandler.class)
     public FailureHandler failureHandler() {
         return new DefaultFailureHandlerImpl();
     }
 
+    // 初始化RM/TM客户端，代理存在相关全局事务注解的对象
     @Bean
     @DependsOn({BEAN_NAME_SPRING_APPLICATION_CONTEXT_PROVIDER, BEAN_NAME_FAILURE_HANDLER})
     @ConditionalOnMissingBean(GlobalTransactionScanner.class)

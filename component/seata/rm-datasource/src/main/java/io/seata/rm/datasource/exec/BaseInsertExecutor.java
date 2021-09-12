@@ -68,6 +68,7 @@ public abstract class BaseInsertExecutor<T, S extends Statement> extends Abstrac
 
     @Override
     protected TableRecords beforeImage() throws SQLException {
+        // 插入不需要前置镜像
         return TableRecords.empty(getTableMeta());
     }
 

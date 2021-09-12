@@ -59,6 +59,8 @@ public class NettyServerBootstrap implements RemotingBootstrap {
 
     public NettyServerBootstrap(NettyServerConfig nettyServerConfig) {
 
+        // 初始化netty相关组件
+
         this.nettyServerConfig = nettyServerConfig;
         if (NettyServerConfig.enableEpoll()) {
             this.eventLoopGroupBoss = new EpollEventLoopGroup(nettyServerConfig.getBossThreadSize(),
@@ -148,10 +150,13 @@ public class NettyServerBootstrap implements RemotingBootstrap {
             });
 
         try {
+            // 启动服务端
             ChannelFuture future = this.serverBootstrap.bind(listenPort).sync();
             LOGGER.info("Server started, listen port: {}", listenPort);
+            // 注册中心注册
             RegistryFactory.getInstance().register(new InetSocketAddress(XID.getIpAddress(), XID.getPort()));
             initialized.set(true);
+            // 等待关闭
             future.channel().closeFuture().sync();
         } catch (Exception exx) {
             throw new RuntimeException(exx);
@@ -166,6 +171,7 @@ public class NettyServerBootstrap implements RemotingBootstrap {
                 LOGGER.debug("Shutting server down. ");
             }
             if (initialized.get()) {
+                // 注册中心取消注册
                 RegistryFactory.getInstance().unregister(new InetSocketAddress(XID.getIpAddress(), XID.getPort()));
                 RegistryFactory.getInstance().close();
                 //wait a few seconds for server transport

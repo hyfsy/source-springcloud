@@ -18,6 +18,8 @@ package io.seata.saga.proctrl;
 import io.seata.common.exception.FrameworkException;
 
 /**
+ * 路由当前状态到下一个状态，null或特殊的Success/End等指令表示结束
+ *
  * Process Router
  *
  * @author jin.xie

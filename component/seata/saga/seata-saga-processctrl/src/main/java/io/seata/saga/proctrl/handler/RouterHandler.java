@@ -19,6 +19,8 @@ import io.seata.common.exception.FrameworkException;
 import io.seata.saga.proctrl.ProcessContext;
 
 /**
+ * 根据当前状态路由到下一个状态
+ *
  * Router Handler
  *
  * @author jin.xie

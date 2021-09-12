@@ -44,6 +44,8 @@ import static io.seata.core.constants.ConfigurationKeys.CLIENT_ASYNC_COMMIT_BUFF
 import static io.seata.common.DefaultValues.DEFAULT_CLIENT_ASYNC_COMMIT_BUFFER_LIMIT;
 
 /**
+ * 专门用来处理 undo_log 的异步删除的，在本地分支提交成功后，就会删除
+ *
  * The type Async worker.
  *
  * @author sharajava
@@ -90,6 +92,7 @@ public class AsyncWorker {
         if (commitQueue.offer(context)) {
             return;
         }
+        // 放入失败，先执行下批量删除再重新尝试放入
         CompletableFuture.runAsync(this::doBranchCommitSafely, scheduledExecutor)
                 .thenRun(() -> addToCommitQueue(context));
     }
@@ -112,6 +115,7 @@ public class AsyncWorker {
         commitQueue.drainTo(allContexts);
 
         // group context by their resourceId
+        // resourceId -> undo_log_context
         Map<String, List<Phase2Context>> groupedContexts = groupedByResourceId(allContexts);
 
         groupedContexts.forEach(this::dealWithGroupedContexts);
@@ -144,6 +148,7 @@ public class AsyncWorker {
         UndoLogManager undoLogManager = UndoLogManagerFactory.getUndoLogManager(dataSourceProxy.getDbType());
 
         // split contexts into several lists, with each list contain no more element than limit size
+        // 每次批量删除1000条
         List<List<Phase2Context>> splitByLimit = Lists.partition(contexts, UNDOLOG_DELETE_LIMIT_SIZE);
         splitByLimit.forEach(partition -> deleteUndoLog(conn, undoLogManager, partition));
     }

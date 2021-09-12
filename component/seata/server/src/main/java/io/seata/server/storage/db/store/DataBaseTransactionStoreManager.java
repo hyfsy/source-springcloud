@@ -96,6 +96,7 @@ public class DataBaseTransactionStoreManager extends AbstractTransactionStoreMan
         logStore = new LogStoreDataBaseDAO(logStoreDataSource);
     }
 
+    // globalSession 和 branchSession 的所有操作
     @Override
     public boolean writeSession(LogOperation logOperation, SessionStorable session) {
         if (LogOperation.GLOBAL_ADD.equals(logOperation)) {
@@ -183,10 +184,14 @@ public class DataBaseTransactionStoreManager extends AbstractTransactionStoreMan
         if (CollectionUtils.isEmpty(globalTransactionDOs)) {
             return null;
         }
+        // all xid
         List<String> xids = globalTransactionDOs.stream().map(GlobalTransactionDO::getXid).collect(Collectors.toList());
+        // branch transaction
         List<BranchTransactionDO> branchTransactionDOs = logStore.queryBranchTransactionDO(xids);
+        // xid -> branchTx
         Map<String, List<BranchTransactionDO>> branchTransactionDOsMap = branchTransactionDOs.stream()
             .collect(Collectors.groupingBy(BranchTransactionDO::getXid, LinkedHashMap::new, Collectors.toList()));
+        // branchTx set to globalTx
         return globalTransactionDOs.stream().map(globalTransactionDO ->
             getGlobalSession(globalTransactionDO, branchTransactionDOsMap.get(globalTransactionDO.getXid())))
             .collect(Collectors.toList());
@@ -194,6 +199,7 @@ public class DataBaseTransactionStoreManager extends AbstractTransactionStoreMan
 
     @Override
     public List<GlobalSession> readSession(SessionCondition sessionCondition) {
+        // 通过xid获取单个GlobalSession
         if (StringUtils.isNotBlank(sessionCondition.getXid())) {
             GlobalSession globalSession = readSession(sessionCondition.getXid());
             if (globalSession != null) {
@@ -201,14 +207,18 @@ public class DataBaseTransactionStoreManager extends AbstractTransactionStoreMan
                 globalSessions.add(globalSession);
                 return globalSessions;
             }
-        } else if (sessionCondition.getTransactionId() != null) {
+        }
+        // 通过tid获取相关的session
+        else if (sessionCondition.getTransactionId() != null) {
             GlobalSession globalSession = readSession(sessionCondition.getTransactionId());
             if (globalSession != null) {
                 List<GlobalSession> globalSessions = new ArrayList<>();
                 globalSessions.add(globalSession);
                 return globalSessions;
             }
-        } else if (CollectionUtils.isNotEmpty(sessionCondition.getStatuses())) {
+        }
+        // 通过session状态查询session
+        else if (CollectionUtils.isNotEmpty(sessionCondition.getStatuses())) {
             return readSession(sessionCondition.getStatuses());
         }
         return null;

@@ -1,0 +1,40 @@
+{
+  "Name": "reduceStoreAndMoneySub",
+  "Comment": "测试减少库存和毛爷爷子状态机",
+  "Version": "0.0.2",
+  "StartState": "ReduceMoney",
+  "States": {
+    "ReduceMoney": {
+      "Type": "ServiceTask",
+      "ServiceName": "fundService",
+      "ServiceMethod": "reduce",
+      "ParameterTypes": [
+        "java.lang.String",
+        "java.util.Map"
+      ],
+      "Input": [
+        "param1",
+        {
+          "param2_1": 2
+        }
+      ],
+      "CompensateState": "FailState"
+    },
+    "SucceedState": {
+      "Type": "Succeed"
+    },
+    "FailState": {
+      "Type": "Fail",
+      "ErrorCode": "error",
+      "Message": "事务执行失败"
+    },
+    "CompensationTriggerState": {
+      "Type": "CompensationTrigger",
+      "Next": "SucceedState",
+      "Comment": "注释说明",
+      "Extensions": {
+        "a": "a_v"
+      }
+    }
+  }
+}

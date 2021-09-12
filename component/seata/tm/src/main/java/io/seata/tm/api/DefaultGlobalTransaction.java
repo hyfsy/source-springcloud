@@ -89,6 +89,7 @@ public class DefaultGlobalTransaction implements GlobalTransaction {
 
     @Override
     public void begin(int timeout, String name) throws TransactionException {
+        // 不是发起人不能进行begin操作
         if (role != GlobalTransactionRole.Launcher) {
             assertXIDNotNull();
             if (LOGGER.isDebugEnabled()) {
@@ -97,11 +98,13 @@ public class DefaultGlobalTransaction implements GlobalTransaction {
             return;
         }
         assertXIDNull();
+        // 刚开始，不能有xid
         String currentXid = RootContext.getXID();
         if (currentXid != null) {
             throw new IllegalStateException("Global transaction already exists," +
                 " can't begin a new global transaction, currentXid = " + currentXid);
         }
+        // 请求TC注册当前全局事务
         xid = transactionManager.begin(null, null, name, timeout);
         status = GlobalStatus.Begin;
         RootContext.bind(xid);
@@ -112,6 +115,7 @@ public class DefaultGlobalTransaction implements GlobalTransaction {
 
     @Override
     public void commit() throws TransactionException {
+        // 参与者没权限提交
         if (role == GlobalTransactionRole.Participant) {
             // Participant has no responsibility of committing
             if (LOGGER.isDebugEnabled()) {
@@ -134,9 +138,11 @@ public class DefaultGlobalTransaction implements GlobalTransaction {
                     }
                 }
             }
-        } finally {
+        }
+        // 本次事务结束，清除xid
+        finally {
             if (xid.equals(RootContext.getXID())) {
-                suspend();
+                suspend(); // suspend只是用来方便清除xid,没有其他作用
             }
         }
         if (LOGGER.isInfoEnabled()) {
@@ -146,6 +152,7 @@ public class DefaultGlobalTransaction implements GlobalTransaction {
 
     @Override
     public void rollback() throws TransactionException {
+        // 参与者没资格回滚
         if (role == GlobalTransactionRole.Participant) {
             // Participant has no responsibility of rollback
             if (LOGGER.isDebugEnabled()) {

@@ -54,8 +54,11 @@ public class DbStateMachineConfig extends DefaultStateMachineConfig implements D
     private String txServiceGroup;
     private String tablePrefix = "seata_";
     private String dbType;
+    // 与TC交互使用
     private SagaTransactionalTemplate sagaTransactionalTemplate;
+    // RM报告分支成功
     private boolean rmReportSuccessEnable = DEFAULT_CLIENT_REPORT_SUCCESS_ENABLE;
+    // 是否注册RM分支
     private boolean sagaBranchRegisterEnable = DEFAULT_CLIENT_SAGA_BRANCH_REGISTER_ENABLE;
 
 
@@ -90,6 +93,9 @@ public class DbStateMachineConfig extends DefaultStateMachineConfig implements D
 
         dbType = getDbTypeFromDataSource(dataSource);
 
+        // 初始化两个日志记录对象
+
+        // CRUD 状态、状态机的数据，内部也会与TC交互
         if (getStateLogStore() == null) {
             DbAndReportTcStateLogStore dbStateLogStore = new DbAndReportTcStateLogStore();
             dbStateLogStore.setDataSource(dataSource);
@@ -119,6 +125,7 @@ public class DbStateMachineConfig extends DefaultStateMachineConfig implements D
             setStateLogStore(dbStateLogStore);
         }
 
+        // CRUD state-lang *.json处理过后的数据
         if (getStateLangStore() == null) {
             DbStateLangStore dbStateLangStore = new DbStateLangStore();
             dbStateLangStore.setDataSource(dataSource);

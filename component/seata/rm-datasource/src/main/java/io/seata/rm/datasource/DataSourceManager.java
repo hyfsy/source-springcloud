@@ -108,6 +108,7 @@ public class DataSourceManager extends AbstractResourceManager {
     @Override
     public BranchStatus branchCommit(BranchType branchType, String xid, long branchId, String resourceId,
                                      String applicationData) throws TransactionException {
+        // 异步删除undo_log
         return asyncWorker.branchCommit(xid, branchId, resourceId);
     }
 
@@ -118,6 +119,7 @@ public class DataSourceManager extends AbstractResourceManager {
         if (dataSourceProxy == null) {
             throw new ShouldNeverHappenException();
         }
+        // 通过undo_log回滚并删除
         try {
             UndoLogManagerFactory.getUndoLogManager(dataSourceProxy.getDbType()).undo(dataSourceProxy, xid, branchId);
         } catch (TransactionException te) {

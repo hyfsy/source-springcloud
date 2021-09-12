@@ -120,6 +120,7 @@ public class GlobalTransactionalInterceptor implements ConfigurationChangeListen
             DEFAULT_DISABLE_GLOBAL_TRANSACTION);
         degradeCheck = ConfigurationFactory.getInstance().getBoolean(ConfigurationKeys.CLIENT_DEGRADE_CHECK,
             DEFAULT_TM_DEGRADE_CHECK);
+        // 事务降级处理
         if (degradeCheck) {
             ConfigurationCache.addConfigListener(ConfigurationKeys.CLIENT_DEGRADE_CHECK, this);
             degradeCheckPeriod = ConfigurationFactory.getInstance().getInt(
@@ -128,6 +129,7 @@ public class GlobalTransactionalInterceptor implements ConfigurationChangeListen
                 ConfigurationKeys.CLIENT_DEGRADE_CHECK_ALLOW_TIMES, DEFAULT_TM_DEGRADE_CHECK_ALLOW_TIMES);
             EVENT_BUS.register(this);
             if (degradeCheckPeriod > 0 && degradeCheckAllowTimes > 0) {
+                // 定时检查事务是否需要降级或恢复
                 startDegradeCheck();
             }
         }
@@ -184,6 +186,7 @@ public class GlobalTransactionalInterceptor implements ConfigurationChangeListen
                     return methodInvocation.proceed();
                 }
 
+                // 事务名称，默认方法签名
                 public String name() {
                     String name = globalTrxAnno.name();
                     if (!StringUtils.isNullOrEmpty(name)) {
@@ -223,7 +226,11 @@ public class GlobalTransactionalInterceptor implements ConfigurationChangeListen
                     return transactionInfo;
                 }
             });
-        } catch (TransactionalExecutor.ExecutionException e) {
+        }
+        // 二阶段异常，实在处理不了
+        // 对于没请求到的情况，只能一直打日志，需要人工处理
+        // 对于没收到响应的情况，会定时请求TC获取最新状态
+        catch (TransactionalExecutor.ExecutionException e) {
             TransactionalExecutor.Code code = e.getCode();
             switch (code) {
                 case RollbackDone:
@@ -252,6 +259,7 @@ public class GlobalTransactionalInterceptor implements ConfigurationChangeListen
         }
     }
 
+    // 先查方法再查类
     public <T extends Annotation> T getAnnotation(Method method, Class<?> targetClass, Class<T> annotationClass) {
         return Optional.ofNullable(method).map(m -> m.getAnnotation(annotationClass))
             .orElse(Optional.ofNullable(targetClass).map(t -> t.getAnnotation(annotationClass)).orElse(null));
@@ -305,9 +313,9 @@ public class GlobalTransactionalInterceptor implements ConfigurationChangeListen
     @Subscribe
     public static void onDegradeCheck(DegradeCheckEvent event) {
         if (event.isRequestSuccess()) {
-            if (degradeNum >= degradeCheckAllowTimes) {
+            if (degradeNum >= degradeCheckAllowTimes) { // 降级条件
                 reachNum++;
-                if (reachNum >= degradeCheckAllowTimes) {
+                if (reachNum >= degradeCheckAllowTimes) { // 恢复条件
                     reachNum = 0;
                     degradeNum = 0;
                     if (LOGGER.isInfoEnabled()) {

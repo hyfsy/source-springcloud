@@ -80,6 +80,7 @@ public class EngineUtils {
      */
     public static void endStateMachine(ProcessContext context) {
 
+        // loop中的状态，终止只需要释放锁就好了
         if (context.hasVariable(DomainConstants.VAR_NAME_IS_LOOP_STATE)) {
             if (context.hasVariable(DomainConstants.LOOP_SEMAPHORE)) {
                 Semaphore semaphore = (Semaphore)context.getVariable(DomainConstants.LOOP_SEMAPHORE);
@@ -93,6 +94,7 @@ public class EngineUtils {
 
         stateMachineInstance.setGmtEnd(new Date());
 
+        // 有异常，设置异常
         Exception exp = (Exception)context.getVariable(DomainConstants.VAR_NAME_CURRENT_EXCEPTION);
         if (exp != null) {
             stateMachineInstance.setException(exp);
@@ -104,21 +106,25 @@ public class EngineUtils {
         StateMachineConfig stateMachineConfig = (StateMachineConfig)context.getVariable(
             DomainConstants.VAR_NAME_STATEMACHINE_CONFIG);
 
+        // 设置状态机的最终状态，下面会全局报告，决定全局事务的最终状态
         stateMachineConfig.getStatusDecisionStrategy().decideOnEndState(context, stateMachineInstance, exp);
 
         stateMachineInstance.getEndParams().putAll(
             (Map<String, Object>)context.getVariable(DomainConstants.VAR_NAME_STATEMACHINE_CONTEXT));
 
+        // 标记状态机指令结束
         StateInstruction instruction = context.getInstruction(StateInstruction.class);
         instruction.setEnd(true);
 
         stateMachineInstance.setRunning(false);
         stateMachineInstance.setGmtEnd(new Date());
 
+        // 全局事务报告
         if (stateMachineInstance.getStateMachine().isPersist() && stateMachineConfig.getStateLogStore() != null) {
             stateMachineConfig.getStateLogStore().recordStateMachineFinished(stateMachineInstance, context);
         }
 
+        // 异步回调
         AsyncCallback callback = (AsyncCallback)context.getVariable(DomainConstants.VAR_NAME_ASYNC_CALLBACK);
         if (callback != null) {
             if (exp != null) {
@@ -137,6 +143,7 @@ public class EngineUtils {
      */
     public static void failStateMachine(ProcessContext context, Exception exp) {
 
+        // loop循环中，直接结束
         if (context.hasVariable(DomainConstants.VAR_NAME_IS_LOOP_STATE)) {
             return;
         }
@@ -147,22 +154,27 @@ public class EngineUtils {
         StateMachineConfig stateMachineConfig = (StateMachineConfig)context.getVariable(
             DomainConstants.VAR_NAME_STATEMACHINE_CONFIG);
 
+        // 决定状态机的状态
         stateMachineConfig.getStatusDecisionStrategy().decideOnTaskStateFail(context, stateMachineInstance, exp);
 
         stateMachineInstance.getEndParams().putAll(
             (Map<String, Object>)context.getVariable(DomainConstants.VAR_NAME_STATEMACHINE_CONTEXT));
 
+        // 指令结束
         StateInstruction instruction = context.getInstruction(StateInstruction.class);
         instruction.setEnd(true);
 
+        // 结束状态机
         stateMachineInstance.setRunning(false);
         stateMachineInstance.setGmtEnd(new Date());
         stateMachineInstance.setException(exp);
 
+        // 发送 GlobalReportRequest
         if (stateMachineInstance.getStateMachine().isPersist() && stateMachineConfig.getStateLogStore() != null) {
             stateMachineConfig.getStateLogStore().recordStateMachineFinished(stateMachineInstance, context);
         }
 
+        // 异步回调
         AsyncCallback callback = (AsyncCallback)context.getVariable(DomainConstants.VAR_NAME_ASYNC_CALLBACK);
         if (callback != null) {
             callback.onError(context, stateMachineInstance, exp);
@@ -194,6 +206,7 @@ public class EngineUtils {
         if (CollectionUtils.isNotEmpty(catches)) {
             for (TaskState.ExceptionMatch exceptionMatch : catches) {
 
+                // 初始化异常class
                 List<String> exceptions = exceptionMatch.getExceptions();
                 List<Class<? extends Exception>> exceptionClasses = exceptionMatch.getExceptionClasses();
                 if (CollectionUtils.isNotEmpty(exceptions)) {
@@ -233,6 +246,7 @@ public class EngineUtils {
                         }
                     }
 
+                    // 匹配异常后，指定异常的路由点
                     for (Class<? extends Exception> expClass : exceptionClasses) {
                         if (expClass.isAssignableFrom(e.getClass())) {
                             ((HierarchicalProcessContext) context).setVariableLocally(

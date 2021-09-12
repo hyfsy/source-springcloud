@@ -90,10 +90,12 @@ public class ConfigurationCache implements ConfigurationChangeListener {
                         && !method.getName().equalsIgnoreCase(METHOD_LATEST_CONFIG)) {
                     String rawDataId = (String)args[0];
                     ObjectWrapper wrapper = CONFIG_CACHE.get(rawDataId);
+                    // getInt/getBoolean/getDuration/getLong/getShort 减少类型转换
                     String type = method.getName().substring(METHOD_PREFIX.length());
                     if (!ObjectWrapper.supportType(type)) {
                         type = null;
                     }
+                    // 获取配置后加入缓存
                     if (null == wrapper) {
                         Object result = method.invoke(originalConfiguration, args);
                         // The wrapper.data only exists in the cache when it is not null.

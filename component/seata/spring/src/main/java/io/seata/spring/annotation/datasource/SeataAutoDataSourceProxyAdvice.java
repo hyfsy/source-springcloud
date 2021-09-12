@@ -53,6 +53,8 @@ public class SeataAutoDataSourceProxyAdvice implements MethodInterceptor, Introd
 
     @Override
     public Object invoke(MethodInvocation invocation) throws Throwable {
+        // 不在全局事务 or 全局事务类型不一样，直接执行方法
+        // 代理数据源只支持AT或XA模式
         if (!RootContext.requireGlobalLock() && dataSourceProxyMode != RootContext.getBranchType()) {
             return invocation.proceed();
         }
@@ -60,10 +62,13 @@ public class SeataAutoDataSourceProxyAdvice implements MethodInterceptor, Introd
         Method method = invocation.getMethod();
         Object[] args = invocation.getArguments();
         Method m = BeanUtils.findDeclaredMethod(dataSourceProxyClazz, method.getName(), method.getParameterTypes());
+        // 获取缓存好的代理数据源，执行方法
         if (m != null && DataSource.class.isAssignableFrom(method.getDeclaringClass())) {
             SeataDataSourceProxy dataSourceProxy = DataSourceProxyHolder.get().putDataSource((DataSource) invocation.getThis(), dataSourceProxyMode);
             return m.invoke(dataSourceProxy, args);
-        } else {
+        }
+        // 不是DataSource接口的方法，直接执行
+        else {
             return invocation.proceed();
         }
     }

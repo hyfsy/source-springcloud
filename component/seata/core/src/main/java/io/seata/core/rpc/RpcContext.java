@@ -71,14 +71,17 @@ public class RpcContext {
      * Release.
      */
     public void release() {
+        // clientId
         Integer clientPort = ChannelUtil.getClientPortFromChannel(channel);
         if (clientIDHolderMap != null) {
             clientIDHolderMap = null;
         }
+        // TM
         if (clientRole == NettyPoolKey.TransactionRole.TMROLE && clientTMHolderMap != null) {
             clientTMHolderMap.remove(clientPort);
             clientTMHolderMap = null;
         }
+        // RM
         if (clientRole == NettyPoolKey.TransactionRole.RMROLE && clientRMHolderMap != null) {
             for (Map<Integer, RpcContext> portMap : clientRMHolderMap.values()) {
                 portMap.remove(clientPort);

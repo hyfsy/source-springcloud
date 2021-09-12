@@ -19,6 +19,8 @@ import io.seata.common.exception.FrameworkException;
 import io.seata.saga.proctrl.ProcessContext;
 
 /**
+ * 处理状态的执行和路由下一个状态
+ *
  * Business logic processor
  *
  * @author jin.xie

@@ -93,8 +93,10 @@ public class SpringBeanServiceInvoker implements ServiceInvoker, ApplicationCont
 
     protected Object doInvoke(ServiceTaskStateImpl state, Object[] input) throws Throwable {
 
+        // 获取bean对象
         Object bean = applicationContext.getBean(state.getServiceName());
 
+        // 获取方法
         Method method = state.getMethod();
         if (method == null) {
             synchronized (state) {
@@ -173,13 +175,16 @@ public class SpringBeanServiceInvoker implements ServiceInvoker, ApplicationCont
     private Retry matchRetryConfig(List<Retry> retryList, Throwable e) {
         if (CollectionUtils.isNotEmpty(retryList)) {
             for (Retry retryConfig : retryList) {
+                // 没有异常参数，默认匹配网络异常
                 List<String> exceptions = retryConfig.getExceptions();
                 if (CollectionUtils.isEmpty(exceptions)) {
                     // Exceptions not configured, Match current exception if it is NetException.
                     if (ExceptionUtils.isNetException(e)) {
                         return retryConfig;
                     }
-                } else {
+                }
+                // 解析异常全类名为类对象
+                else {
                     List<Class<? extends Exception>> exceptionClasses = retryConfig.getExceptionClasses();
                     if (exceptionClasses == null) {
                         synchronized (retryConfig) {
@@ -217,6 +222,7 @@ public class SpringBeanServiceInvoker implements ServiceInvoker, ApplicationCont
                         }
                     }
 
+                    // 匹配异常
                     for (Class<? extends Exception> expClass : exceptionClasses) {
                         if (expClass.isAssignableFrom(e.getClass())) {
                             return retryConfig;
@@ -239,6 +245,7 @@ public class SpringBeanServiceInvoker implements ServiceInvoker, ApplicationCont
     }
 
     protected Method findMethod(Class<?> clazz, String methodName, List<String> parameterTypes) {
+        // 没有参数，默认找最少参数的方法
         if (CollectionUtils.isEmpty(parameterTypes)) {
             return BeanUtils.findDeclaredMethodWithMinimalParameters(clazz, methodName);
         } else {

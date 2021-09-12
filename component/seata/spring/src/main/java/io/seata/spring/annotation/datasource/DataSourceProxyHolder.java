@@ -66,6 +66,7 @@ public class DataSourceProxyHolder {
      */
     public SeataDataSourceProxy putDataSource(DataSource dataSource, BranchType dataSourceProxyMode) {
         DataSource originalDataSource;
+        // 解代理
         if (dataSource instanceof SeataDataSourceProxy) {
             SeataDataSourceProxy dataSourceProxy = (SeataDataSourceProxy) dataSource;
 
@@ -80,6 +81,7 @@ public class DataSourceProxyHolder {
             originalDataSource = dataSource;
         }
 
+        // 创建代理数据源，并缓存起来
         SeataDataSourceProxy dsProxy = dataSourceProxyMap.get(originalDataSource);
         if (dsProxy == null) {
             synchronized (dataSourceProxyMap) {

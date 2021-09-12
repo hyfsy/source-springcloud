@@ -51,11 +51,13 @@ public abstract class AbstractLockManager implements LockManager {
             return true;
         }
         // get locks of branch
+        // lockKey包装为实体对象
         List<RowLock> locks = collectRowLocks(branchSession);
         if (CollectionUtils.isEmpty(locks)) {
             // no lock
             return true;
         }
+        // 添加行锁记录
         return getLocker(branchSession).acquireLock(locks);
     }
 
@@ -119,6 +121,7 @@ public abstract class AbstractLockManager implements LockManager {
      */
     protected List<RowLock> collectRowLocks(BranchSession branchSession) {
         List<RowLock> locks = new ArrayList<>();
+        // 校验
         if (branchSession == null || StringUtils.isBlank(branchSession.getLockKey())) {
             return locks;
         }
@@ -157,13 +160,18 @@ public abstract class AbstractLockManager implements LockManager {
                                             Long branchID) {
         List<RowLock> locks = new ArrayList<RowLock>();
 
+        // lockKey -> tableName:pk1,pk2
+
+        // 每个表
         String[] tableGroupedLockKeys = lockKey.split(";");
         for (String tableGroupedLockKey : tableGroupedLockKeys) {
             int idx = tableGroupedLockKey.indexOf(":");
             if (idx < 0) {
                 return locks;
             }
+            // 表名
             String tableName = tableGroupedLockKey.substring(0, idx);
+            // pk值
             String mergedPKs = tableGroupedLockKey.substring(idx + 1);
             if (StringUtils.isBlank(mergedPKs)) {
                 return locks;

@@ -90,6 +90,7 @@ public class ClientOnResponseProcessor implements RemotingProcessor {
 
     @Override
     public void process(ChannelHandlerContext ctx, RpcMessage rpcMessage) throws Exception {
+        // 服务端返回的批处理结果响应
         if (rpcMessage.getBody() instanceof MergeResultMessage) {
             MergeResultMessage results = (MergeResultMessage) rpcMessage.getBody();
             MergedWarpMessage mergeMessage = (MergedWarpMessage) mergeMsgMap.remove(rpcMessage.getId());
@@ -104,7 +105,9 @@ public class ClientOnResponseProcessor implements RemotingProcessor {
                     future.setResultMessage(results.getMsgs()[i]);
                 }
             }
-        } else {
+        }
+        // 单请求的响应处理
+        else {
             MessageFuture messageFuture = futures.remove(rpcMessage.getId());
             if (messageFuture != null) {
                 messageFuture.setResultMessage(rpcMessage.getBody());

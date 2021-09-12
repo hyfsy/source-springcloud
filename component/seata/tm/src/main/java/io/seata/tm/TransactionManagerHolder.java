@@ -36,6 +36,7 @@ public class TransactionManagerHolder {
 
         static {
             try {
+                // 目前只有 DefaultTransactionManager
                 INSTANCE = EnhancedServiceLoader.load(TransactionManager.class);
                 LOGGER.info("TransactionManager Singleton {}", INSTANCE);
             } catch (Throwable anyEx) {

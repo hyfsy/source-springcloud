@@ -32,6 +32,8 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 
 /**
+ * 打日志用，标记正在saga事务中
+ *
  * InSagaBranchHandler Interceptor
  *
  * @author wang.liang

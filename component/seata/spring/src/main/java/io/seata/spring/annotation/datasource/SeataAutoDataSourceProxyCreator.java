@@ -37,6 +37,7 @@ public class SeataAutoDataSourceProxyCreator extends AbstractAutoProxyCreator {
 
     public SeataAutoDataSourceProxyCreator(boolean useJdkProxy, String[] excludes, String dataSourceProxyMode) {
         this.excludes = Arrays.asList(excludes);
+        // DataSource 已经是一个接口了，所以此处使用引介支持多接口代理
         this.advisor = new DefaultIntroductionAdvisor(new SeataAutoDataSourceProxyAdvice(dataSourceProxyMode));
         setProxyTargetClass(!useJdkProxy);
     }
@@ -52,6 +53,7 @@ public class SeataAutoDataSourceProxyCreator extends AbstractAutoProxyCreator {
     @Override
     protected boolean shouldSkip(Class<?> beanClass, String beanName) {
         return !DataSource.class.isAssignableFrom(beanClass) ||
+                // 代理的数据源实现的
             SeataProxy.class.isAssignableFrom(beanClass) ||
             excludes.contains(beanClass.getName());
     }

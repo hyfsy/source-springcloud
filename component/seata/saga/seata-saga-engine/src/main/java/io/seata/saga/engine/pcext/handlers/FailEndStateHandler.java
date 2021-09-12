@@ -34,12 +34,15 @@ public class FailEndStateHandler implements StateHandler {
     @Override
     public void process(ProcessContext context) throws EngineExecutionException {
 
+        // 添加结束标记
         context.setVariable(DomainConstants.VAR_NAME_FAIL_END_STATE_FLAG, true);
 
         StateInstruction instruction = context.getInstruction(StateInstruction.class);
         FailEndState state = (FailEndState)instruction.getState(context);
         Map<String, Object> contextVariables = (Map<String, Object>)context.getVariable(
             DomainConstants.VAR_NAME_STATEMACHINE_CONTEXT);
+
+        // 参数放入上下文参数中，供其他状态使用
         contextVariables.put(DomainConstants.VAR_NAME_STATEMACHINE_ERROR_CODE, state.getErrorCode());
         contextVariables.put(DomainConstants.VAR_NAME_STATEMACHINE_ERROR_MSG, state.getMessage());
     }

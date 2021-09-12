@@ -55,12 +55,17 @@ public class SubStateMachineHandler implements StateHandler, InterceptableStateH
 
     private static ExecutionStatus decideStatus(StateMachineInstance stateMachineInstance, boolean isForward) {
 
+        // 前进状态，直接算成功
         if (isForward && ExecutionStatus.SU.equals(stateMachineInstance.getStatus())) {
             return ExecutionStatus.SU;
-        } else if (stateMachineInstance.getCompensationStatus() == null || ExecutionStatus.FA.equals(
+        }
+        // 没有补偿或补偿失败，直接获取状态
+        else if (stateMachineInstance.getCompensationStatus() == null || ExecutionStatus.FA.equals(
             stateMachineInstance.getCompensationStatus())) {
             return stateMachineInstance.getStatus();
-        } else if (ExecutionStatus.SU.equals(stateMachineInstance.getCompensationStatus())) {
+        }
+        // 子状态机补偿成功，就算当前状态失败
+        else if (ExecutionStatus.SU.equals(stateMachineInstance.getCompensationStatus())) {
             return ExecutionStatus.FA;
         } else {
             return ExecutionStatus.UN;
@@ -79,6 +84,7 @@ public class SubStateMachineHandler implements StateHandler, InterceptableStateH
             DomainConstants.VAR_NAME_STATEMACHINE_INST);
         StateInstance stateInstance = (StateInstance)context.getVariable(DomainConstants.VAR_NAME_STATE_INST);
 
+        // 状态机的开始参数
         Object inputParamsObj = context.getVariable(DomainConstants.VAR_NAME_INPUT_PARAMS);
         Map<String, Object> startParams = new HashMap<>(0);
         if (inputParamsObj instanceof List) {
@@ -90,20 +96,26 @@ public class SubStateMachineHandler implements StateHandler, InterceptableStateH
             startParams = (Map<String, Object>)inputParamsObj;
         }
 
+        // 添加父状态机id
         startParams.put(DomainConstants.VAR_NAME_PARENT_ID, EngineUtils.generateParentId(stateInstance));
         try {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug(">>>>>>>>>>>>>>>>>>>>>> Start to execute SubStateMachine [{}] by state[{}]",
                     subStateMachine.getStateMachineName(), subStateMachine.getName());
             }
+
+            // 执行子状态机
             StateMachineInstance subStateMachineInstance = callSubStateMachine(startParams, engine, context,
                 stateInstance, subStateMachine);
 
+            // 获取返回值
             Map<String, Object> outputParams = subStateMachineInstance.getEndParams();
             boolean isForward = DomainConstants.OPERATION_NAME_FORWARD.equals(
                 context.getVariable(DomainConstants.VAR_NAME_OPERATION_NAME));
+            // 根据子状态机状态决定当前状态的执行状态
             ExecutionStatus callSubMachineStatus = decideStatus(subStateMachineInstance, isForward);
             stateInstance.setStatus(callSubMachineStatus);
+            // 输出参数
             outputParams.put(DomainConstants.VAR_NAME_SUB_STATEMACHINE_EXEC_STATUE, callSubMachineStatus.toString());
             context.setVariable(DomainConstants.VAR_NAME_OUTPUT_PARAMS, outputParams);
             stateInstance.setOutputParams(outputParams);
@@ -144,9 +156,12 @@ public class SubStateMachineHandler implements StateHandler, InterceptableStateH
     private StateMachineInstance callSubStateMachine(Map<String, Object> startParams, StateMachineEngine engine,
                                                      ProcessContext context, StateInstance stateInstance,
                                                      SubStateMachine subStateMachine) {
+        // 子状态机不forward直接执行
         if (!Boolean.TRUE.equals(context.getVariable(DomainConstants.VAR_NAME_IS_FOR_SUB_STATMACHINE_FORWARD))) {
             return startNewStateMachine(startParams, engine, stateInstance, subStateMachine);
-        } else {
+        }
+        // 子状态机需要forward
+        else {
             context.removeVariable(DomainConstants.VAR_NAME_IS_FOR_SUB_STATMACHINE_FORWARD);
 
             return forwardStateMachine(startParams, engine, context, stateInstance, subStateMachine);
@@ -157,6 +172,7 @@ public class SubStateMachineHandler implements StateHandler, InterceptableStateH
                                                       StateInstance stateInstance, SubStateMachine subStateMachine) {
 
         StateMachineInstance subStateMachineInstance;
+        // 区别就是会将businessKey再次放入到StateInstance中
         if (stateInstance.getBusinessKey() != null) {
             subStateMachineInstance = engine.startWithBusinessKey(subStateMachine.getStateMachineName(),
                 stateInstance.getStateMachineInstance().getTenantId(), stateInstance.getBusinessKey(), startParams);
@@ -177,19 +193,24 @@ public class SubStateMachineHandler implements StateHandler, InterceptableStateH
             throw new ForwardInvalidException("StatePersister is not configured", FrameworkErrorCode.ObjectNotExists);
         }
 
+        // 获取最初失败的那个状态
         StateInstance originalStateInst = stateInstance;
         do {
             originalStateInst = statePersister.getStateInstance(originalStateInst.getStateIdRetriedFor(),
                 originalStateInst.getMachineInstanceId());
         } while (StringUtils.hasText(originalStateInst.getStateIdRetriedFor()));
 
+        // 获取所有的子状态机
         List<StateMachineInstance> subInst = statePersister.queryStateMachineInstanceByParentId(
             EngineUtils.generateParentId(originalStateInst));
+        // 有子状态机就让子状态机继续forward
         if (subInst.size() > 0) {
             String subInstId = subInst.get(0).getId();
 
             return engine.forward(subInstId, startParams);
-        } else {
+        }
+        // 没有子状态机则直接开启一个新的子状态机
+        else {
             originalStateInst.setStateMachineInstance(stateInstance.getStateMachineInstance());
             return startNewStateMachine(startParams, engine, originalStateInst, subStateMachine);
         }

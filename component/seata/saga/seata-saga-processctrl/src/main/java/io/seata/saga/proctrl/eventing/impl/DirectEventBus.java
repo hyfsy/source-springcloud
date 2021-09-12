@@ -26,6 +26,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * 本地线程直接执行流程
+ *
  * Deliver event to event consumer directly
  *
  * @author lorne.cl
@@ -46,6 +48,7 @@ public class DirectEventBus extends AbstractEventBus<ProcessContext> {
             return false;
         }
 
+        // 初始化状态栈
         boolean isFirstEvent = false;
         Stack<ProcessContext> currentStack = (Stack<ProcessContext>)context.getVariable(VAR_NAME_SYNC_EXE_STACK);
         if (currentStack == null) {
@@ -59,13 +62,17 @@ public class DirectEventBus extends AbstractEventBus<ProcessContext> {
             }
         }
 
+        // 流程上下文一层一层堆起来，由最初的在下面的while中循环执行，第二个到这时，第一个还在process中
         currentStack.push(context);
 
+        // 第一个事务才允许执行
         if (isFirstEvent) {
             try {
                 while (currentStack.size() > 0) {
                     ProcessContext currentContext = currentStack.pop();
                     for (EventConsumer eventHandler : eventHandlers) {
+                        // 一层层处理
+                        // 处理完是在路由完毕，路由时会往这个堆栈里放入状态
                         eventHandler.process(currentContext);
                     }
                 }

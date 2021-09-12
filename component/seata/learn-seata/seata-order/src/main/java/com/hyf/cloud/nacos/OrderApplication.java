@@ -1,6 +1,5 @@
 package com.hyf.cloud.nacos;
 
-import io.seata.spring.annotation.datasource.EnableAutoDataSourceProxy;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
@@ -12,7 +11,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  * @date 2021/08/23
  */
 @SpringBootApplication
-@EnableAutoDataSourceProxy
+// @EnableAutoDataSourceProxy
 @EnableFeignClients
 public class OrderApplication {
 

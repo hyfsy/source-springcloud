@@ -263,6 +263,15 @@ public class BranchSession implements Lockable, Comparable<BranchSession>, Sessi
         return branchType == BranchType.AT || status == BranchStatus.PhaseOne_Failed;
     }
 
+    @Override
+    public boolean lock() throws TransactionException {
+        if (this.getBranchType().equals(BranchType.AT)) {
+            // 添加行锁记录
+            return LockerManagerFactory.getLockManager().acquireLock(this);
+        }
+        return true;
+    }
+
     /**
      * Gets lock holder.
      *
@@ -273,15 +282,8 @@ public class BranchSession implements Lockable, Comparable<BranchSession>, Sessi
     }
 
     @Override
-    public boolean lock() throws TransactionException {
-        if (this.getBranchType().equals(BranchType.AT)) {
-            return LockerManagerFactory.getLockManager().acquireLock(this);
-        }
-        return true;
-    }
-
-    @Override
     public boolean unlock() throws TransactionException {
+        // delete undo_lock
         if (this.getBranchType() == BranchType.AT) {
             return LockerManagerFactory.getLockManager().releaseLock(this);
         }

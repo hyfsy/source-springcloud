@@ -28,6 +28,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * 事务失败的检查处理
+ *
  * The type Default failure handler.
  *
  * @author slievrly
@@ -59,6 +61,7 @@ public class DefaultFailureHandlerImpl implements FailureHandler {
     @Override
     public void onCommitFailure(GlobalTransaction tx, Throwable cause) {
         LOGGER.warn("Failed to commit transaction[" + tx.getXid() + "]", cause);
+        // 定时检查事务状态，超时或达到给定的事务状态时停止
         timer.newTimeout(new CheckTimerTask(tx, GlobalStatus.Committed), SCHEDULE_INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
 
@@ -93,6 +96,7 @@ public class DefaultFailureHandlerImpl implements FailureHandler {
         @Override
         public void run(Timeout timeout) throws Exception {
             if (!isStopped) {
+                // 360条异常日志
                 if (++count > RETRY_MAX_TIMES) {
                     LOGGER.error("transaction [{}] retry fetch status times exceed the limit [{} times]", tx.getXid(), RETRY_MAX_TIMES);
                     return;

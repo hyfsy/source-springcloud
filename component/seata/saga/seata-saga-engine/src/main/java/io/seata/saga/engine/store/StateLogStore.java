@@ -22,6 +22,8 @@ import io.seata.saga.statelang.domain.StateInstance;
 import io.seata.saga.statelang.domain.StateMachineInstance;
 
 /**
+ * CRUD 状态、状态机的数据，内部也会与TC交互
+ *
  * StateMachine engine log store
  *
  * @author lorne.cl

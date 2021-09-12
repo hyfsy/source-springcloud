@@ -19,6 +19,10 @@ import java.util.Date;
 import java.util.Map;
 
 /**
+ * 为配置文件解析出的实体对象
+ *
+ * 引擎中实际操作的是 StateMachineInstance 数据库实体对象
+ *
  * StateMachine
  *
  * @author lorne.cl

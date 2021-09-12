@@ -94,6 +94,7 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
             //if parentId is not null, machineInstance is a SubStateMachine, do not start a new global transaction,
             //use parent transaction instead.
             String parentId = machineInstance.getParentId();
+            // 开启全局事务
             if (StringUtils.isEmpty(parentId)) {
                 beginTransaction(machineInstance, context);
             }
@@ -137,6 +138,7 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
             transactionInfo.setTimeOut(stateMachineConfig.getTransOperationTimeout());
             transactionInfo.setName(Constants.SAGA_TRANS_NAME_PREFIX + machineInstance.getStateMachine().getName());
             try {
+                // tx.begin -> GlobalBeginRequest
                 GlobalTransaction globalTransaction = sagaTransactionalTemplate.beginTransaction(transactionInfo);
                 machineInstance.setId(globalTransaction.getXid());
 
@@ -187,9 +189,12 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
                 } else {
                     StateMachineConfig stateMachineConfig = (StateMachineConfig) context.getVariable(
                             DomainConstants.VAR_NAME_STATEMACHINE_CONFIG);
+                    // 状态执行超时
                     if (EngineUtils.isTimeout(machineInstance.getGmtUpdated(), stateMachineConfig.getTransOperationTimeout())) {
                         LOGGER.warn("StateMachineInstance[{}] is execution timeout, skip report transaction finished to server.", machineInstance.getId());
-                    } else if (StringUtils.isEmpty(machineInstance.getParentId())) {
+                    }
+                    // SubStateMachine才有
+                    else if (StringUtils.isEmpty(machineInstance.getParentId())) {
                         //if parentId is not null, machineInstance is a SubStateMachine, do not report global transaction.
                         reportTransactionFinished(machineInstance, context);
                     }
@@ -211,19 +216,29 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
                             FrameworkErrorCode.ObjectNotExists);
                 }
 
+                // 选择全局事务状态去报告给TC，有TC决定全局事务的提交或回滚
                 GlobalStatus globalStatus;
+                // 成功，全局事务结束
                 if (ExecutionStatus.SU.equals(machineInstance.getStatus())
                         && machineInstance.getCompensationStatus() == null) {
                     globalStatus = GlobalStatus.Committed;
-                } else if (ExecutionStatus.SU.equals(machineInstance.getCompensationStatus())) {
+                }
+                // 补偿成功，表示回滚成功
+                else if (ExecutionStatus.SU.equals(machineInstance.getCompensationStatus())) {
                     globalStatus = GlobalStatus.Rollbacked;
-                } else if (ExecutionStatus.FA.equals(machineInstance.getCompensationStatus()) || ExecutionStatus.UN
+                }
+                // 补偿失败或位置，需要重新回滚
+                else if (ExecutionStatus.FA.equals(machineInstance.getCompensationStatus()) || ExecutionStatus.UN
                         .equals(machineInstance.getCompensationStatus())) {
                     globalStatus = GlobalStatus.RollbackRetrying;
-                } else if (ExecutionStatus.FA.equals(machineInstance.getStatus())
+                }
+                // 执行失败，没有补偿操作，表示全局事务失败
+                else if (ExecutionStatus.FA.equals(machineInstance.getStatus())
                         && machineInstance.getCompensationStatus() == null) {
                     globalStatus = GlobalStatus.Finished;
-                } else if (ExecutionStatus.UN.equals(machineInstance.getStatus())
+                }
+                // 状态位置，表示需要继续执行状态机
+                else if (ExecutionStatus.UN.equals(machineInstance.getStatus())
                         && machineInstance.getCompensationStatus() == null) {
                     globalStatus = GlobalStatus.CommitRetrying;
                 } else {
@@ -266,8 +281,11 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
     public void recordStateStarted(StateInstance stateInstance, ProcessContext context) {
         if (stateInstance != null) {
 
+            // C or U
+            // 重试、补偿才可能为U，否则就为C
             boolean isUpdateMode = isUpdateMode(stateInstance, context);
 
+            // 重试
             // if this state is for retry, do not register branch
             if (StringUtils.hasLength(stateInstance.getStateIdRetriedFor())) {
                 if (isUpdateMode) {
@@ -277,22 +295,29 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
                     stateInstance.setId(generateRetryStateInstanceId(stateInstance));
                 }
             }
+            // 补偿
             // if this state is for compensation, do not register branch
             else if (StringUtils.hasLength(stateInstance.getStateIdCompensatedFor())) {
                 stateInstance.setId(generateCompensateStateInstanceId(stateInstance, isUpdateMode));
-            } else {
+            }
+            // 正常流程，注册分支事务，可选的
+            else {
                 branchRegister(stateInstance, context);
             }
 
+            // 非重试和补偿的状态才没有id，这两个在上面默认生成好了
             if (StringUtils.isEmpty(stateInstance.getId()) && seqGenerator != null) {
                 stateInstance.setId(seqGenerator.generate(DomainConstants.SEQ_ENTITY_STATE_INST));
             }
 
+            // 入参转json，序列化后存储
             stateInstance.setSerializedInputParams(paramsSerializer.serialize(stateInstance.getInputParams()));
             if (!isUpdateMode) {
+                // 新增执行
                 executeUpdate(stateLogStoreSqls.getRecordStateStartedSql(dbType),
                     STATE_INSTANCE_TO_STATEMENT_FOR_INSERT, stateInstance);
             } else {
+                // 更新已有
                 // if this retry/compensate state do not need persist, just update last inst
                 executeUpdate(stateLogStoreSqls.getUpdateStateExecutionStatusSql(dbType),
                     stateInstance.getStatus().name(), new Timestamp(System.currentTimeMillis()),
@@ -306,6 +331,7 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
             StateMachineConfig stateMachineConfig = (StateMachineConfig) context.getVariable(
                     DomainConstants.VAR_NAME_STATEMACHINE_CONFIG);
 
+            // 分支事务不强制注册，默认不注册
             if (stateMachineConfig instanceof DbStateMachineConfig
                     && !((DbStateMachineConfig)stateMachineConfig).isSagaBranchRegisterEnable()) {
                 if (LOGGER.isDebugEnabled()) {
@@ -322,6 +348,7 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
                     throw new EngineExecutionException("Global transaction is not exists", FrameworkErrorCode.ObjectNotExists);
                 }
 
+                // BranchRegisterRequest
                 String resourceId = stateInstance.getStateMachineInstance().getStateMachine().getName() + "#" + stateInstance.getName();
                 long branchId = sagaTransactionalTemplate.branchRegister(resourceId, null, globalTransaction.getXid(), null, null);
                 stateInstance.setId(String.valueOf(branchId));
@@ -344,6 +371,7 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
     protected GlobalTransaction getGlobalTransaction(StateMachineInstance machineInstance, ProcessContext context)
             throws ExecutionException, TransactionException {
         GlobalTransaction globalTransaction = (GlobalTransaction) context.getVariable(DomainConstants.VAR_NAME_GLOBAL_TX);
+        // 没找到，要重新加载下
         if (globalTransaction == null) {
             String xid;
             String parentId = machineInstance.getParentId();
@@ -352,6 +380,7 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
             } else {
                 xid = parentId.substring(0, parentId.lastIndexOf(DomainConstants.SEPERATOR_PARENT_ID));
             }
+            // GlobalStatus.UnKnown, GlobalTransactionRole.Launcher
             globalTransaction = sagaTransactionalTemplate.reloadTransaction(xid);
             if (globalTransaction != null) {
                 context.setVariable(DomainConstants.VAR_NAME_GLOBAL_TX, globalTransaction);
@@ -367,6 +396,7 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
      * @return
      */
     private String generateRetryStateInstanceId(StateInstance stateInstance) {
+        // stateId.index index随着重试的次数递增
         String originalStateInstId = stateInstance.getStateIdRetriedFor();
         int maxIndex = 1;
         Map<String, StateInstance> stateInstanceMap = stateInstance.getStateMachineInstance().getStateMap();
@@ -390,6 +420,7 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
      * @return
      */
     private String generateCompensateStateInstanceId(StateInstance stateInstance, boolean isUpdateMode) {
+        // 新生成补偿的状态id stateId-index index随着补偿的次数递增
         String originalCompensateStateInstId = stateInstance.getStateIdCompensatedFor();
         int maxIndex = 1;
         // if update mode, means update last compensate inst
@@ -431,20 +462,28 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
         ServiceTaskStateImpl state = (ServiceTaskStateImpl)instruction.getState(context);
         StateMachine stateMachine = stateInstance.getStateMachineInstance().getStateMachine();
 
+        // 重试的状态
         if (StringUtils.hasLength(stateInstance.getStateIdRetriedFor())) {
 
+            // 状态配置
             if (null != state.isRetryPersistModeUpdate()) {
                 return state.isRetryPersistModeUpdate();
-            } else if (null != stateMachine.isRetryPersistModeUpdate()) {
+            }
+            // 状态机配置
+            else if (null != stateMachine.isRetryPersistModeUpdate()) {
                 return stateMachine.isRetryPersistModeUpdate();
             }
+            // 默认配置
             return stateMachineConfig.isSagaRetryPersistModeUpdate();
 
-        } else if (StringUtils.hasLength(stateInstance.getStateIdCompensatedFor())) {
+        }
+        // 补偿的状态才有，指向被补偿的状态ID
+        else if (StringUtils.hasLength(stateInstance.getStateIdCompensatedFor())) {
 
             // find if this compensate has been executed
             for (int i = 0; i < stateInstance.getStateMachineInstance().getStateList().size(); i++) {
                 StateInstance aStateInstance = stateInstance.getStateMachineInstance().getStateList().get(i);
+                // 查找是否当前补偿的状态已经执行过了，执行过就找它的PersistUpdate
                 if (aStateInstance.isForCompensation() && aStateInstance.getName().equals(stateInstance.getName())) {
                     if (null != state.isCompensatePersistModeUpdate()) {
                         return state.isCompensatePersistModeUpdate();
@@ -454,6 +493,7 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
                     return stateMachineConfig.isSagaCompensatePersistModeUpdate();
                 }
             }
+            // 之前没有，需要新增一条
             return false;
         }
         return false;
@@ -463,6 +503,7 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
     public void recordStateFinished(StateInstance stateInstance, ProcessContext context) {
         if (stateInstance != null) {
 
+            // 结束当前状态，持久化
             stateInstance.setSerializedOutputParams(paramsSerializer.serialize(stateInstance.getOutputParams()));
             stateInstance.setSerializedException(exceptionSerializer.serialize(stateInstance.getException()));
             executeUpdate(stateLogStoreSqls.getRecordStateFinishedSql(dbType), STATE_INSTANCE_TO_STATEMENT_FOR_UPDATE,
@@ -471,6 +512,7 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
             //A switch to skip branch report on branch success, in order to optimize performance
             StateMachineConfig stateMachineConfig = (StateMachineConfig) context.getVariable(
                     DomainConstants.VAR_NAME_STATEMACHINE_CONFIG);
+            // !DbStateMachineConfig | 启用分支报告 | 不成功的状态
             if (!(stateMachineConfig instanceof DbStateMachineConfig
                     && !((DbStateMachineConfig)stateMachineConfig).isRmReportSuccessEnable()
                     && ExecutionStatus.SU.equals(stateInstance.getStatus()))) {
@@ -484,6 +526,7 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
             StateMachineConfig stateMachineConfig = (StateMachineConfig) context.getVariable(
                     DomainConstants.VAR_NAME_STATEMACHINE_CONFIG);
 
+            // 分支报告没启用，直接结束
             if (stateMachineConfig instanceof DbStateMachineConfig
                     && !((DbStateMachineConfig)stateMachineConfig).isSagaBranchRegisterEnable()) {
                 if (LOGGER.isDebugEnabled()) {
@@ -496,46 +539,66 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
             //find out the original state instance, only the original state instance is registered on the server, and its status should
             // be reported.
             StateInstance originalStateInst = null;
+            // 重试 前进 提交 你懂的
             if (StringUtils.hasLength(stateInstance.getStateIdRetriedFor())) {
 
+                // 当前重试状态可更新，则直接更新持久化数据，默认配置的false
                 if (isUpdateMode(stateInstance, context)) {
                     originalStateInst = stateInstance;
-                } else {
+                }
+                // 查找最初失败的状态
+                else {
                     originalStateInst = findOutOriginalStateInstanceOfRetryState(stateInstance);
                 }
 
+                // 重试成功，算提交成功
                 if (ExecutionStatus.SU.equals(stateInstance.getStatus())) {
                     branchStatus = BranchStatus.PhaseTwo_Committed;
-                } else if (ExecutionStatus.FA.equals(stateInstance.getStatus()) || ExecutionStatus.UN.equals(
+                }
+                // 没成功算失败
+                else if (ExecutionStatus.FA.equals(stateInstance.getStatus()) || ExecutionStatus.UN.equals(
                         stateInstance.getStatus())) {
                     branchStatus = BranchStatus.PhaseOne_Failed;
                 } else {
                     branchStatus = BranchStatus.Unknown;
                 }
 
-            } else if (StringUtils.hasLength(stateInstance.getStateIdCompensatedFor())) {
+            }
+            // 补偿回滚
+            else if (StringUtils.hasLength(stateInstance.getStateIdCompensatedFor())) {
 
+                // 同上
                 if (isUpdateMode(stateInstance, context)) {
                     originalStateInst = stateInstance.getStateMachineInstance().getStateMap().get(
                         stateInstance.getStateIdCompensatedFor());
-                } else {
+                }
+                // 同上
+                else {
                     originalStateInst = findOutOriginalStateInstanceOfCompensateState(stateInstance);
                 }
             }
 
+            // 正常执行
             if (originalStateInst == null) {
                 originalStateInst = stateInstance;
             }
 
             if (branchStatus == null) {
+                // 分支事务成功了，没有补偿，直接算分支事务的二阶段成功
                 if (ExecutionStatus.SU.equals(originalStateInst.getStatus()) && originalStateInst.getCompensationStatus() == null) {
                     branchStatus = BranchStatus.PhaseTwo_Committed;
-                } else if (ExecutionStatus.SU.equals(originalStateInst.getCompensationStatus())) {
+                }
+                // 成功有补偿，说明分支事务回滚成功
+                else if (ExecutionStatus.SU.equals(originalStateInst.getCompensationStatus())) {
                     branchStatus = BranchStatus.PhaseTwo_Rollbacked;
-                } else if (ExecutionStatus.FA.equals(originalStateInst.getCompensationStatus())
+                }
+                // 补偿失败或未知，表示需要重新补偿
+                else if (ExecutionStatus.FA.equals(originalStateInst.getCompensationStatus())
                         || ExecutionStatus.UN.equals(originalStateInst.getCompensationStatus())) {
                     branchStatus = BranchStatus.PhaseTwo_RollbackFailed_Retryable;
-                } else if ((ExecutionStatus.FA.equals(originalStateInst.getStatus()) || ExecutionStatus.UN.equals(
+                }
+                // 状态失败或未知，说明分支事务一阶段失败了，因为，一般UN状态不会进这个方法的
+                else if ((ExecutionStatus.FA.equals(originalStateInst.getStatus()) || ExecutionStatus.UN.equals(
                         originalStateInst.getStatus()))
                         && originalStateInst.getCompensationStatus() == null) {
                     branchStatus = BranchStatus.PhaseOne_Failed;
@@ -585,6 +648,7 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
     private StateInstance findOutOriginalStateInstanceOfRetryState(StateInstance stateInstance) {
         StateInstance originalStateInst;
         Map<String, StateInstance> stateInstanceMap = stateInstance.getStateMachineInstance().getStateMap();
+        // 获取当前失败的状态，一层一层向上找最初失败的状态
         originalStateInst = stateInstanceMap.get(stateInstance.getStateIdRetriedFor());
         while (StringUtils.hasLength(originalStateInst.getStateIdRetriedFor())) {
             originalStateInst = stateInstanceMap.get(originalStateInst.getStateIdRetriedFor());
@@ -702,27 +766,34 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
             lastStateInstance.setStatus(ExecutionStatus.RU);
         }
         Map<String, StateInstance> originStateMap = new HashMap<>();
+        // 所有状态的补偿状态
         Map<String/* originStateId */, StateInstance/* compensatedState */> compensatedStateMap = new HashMap<>();
+        // 所有状态的重试状态
         Map<String/* originStateId */, StateInstance/* retriedState */> retriedStateMap = new HashMap<>();
         for (StateInstance tempStateInstance : stateInstanceList) {
             deserializeParamsAndException(tempStateInstance);
 
+            // 当前状态（new）补偿的状态（old）
             if (StringUtils.hasText(tempStateInstance.getStateIdCompensatedFor())) {
                 putLastStateToMap(compensatedStateMap, tempStateInstance, tempStateInstance.getStateIdCompensatedFor());
-            } else {
+            }
+            // 重试状态
+            else {
                 if (StringUtils.hasText(tempStateInstance.getStateIdRetriedFor())) {
-                    putLastStateToMap(retriedStateMap, tempStateInstance, tempStateInstance.getStateIdRetriedFor());
+                    putLastStateToMap(retriedStateMap, tempStateInstance /* value */, tempStateInstance.getStateIdRetriedFor() /* key */);
                 }
                 originStateMap.put(tempStateInstance.getId(), tempStateInstance);
             }
         }
 
+        // 关联补偿状态
         if (compensatedStateMap.size() != 0) {
             for (StateInstance origState : originStateMap.values()) {
                 origState.setCompensationState(compensatedStateMap.get(origState.getId()));
             }
         }
 
+        // 重试的状态都需要忽略，清理掉一些旧版本的状态
         if (retriedStateMap.size() != 0) {
             for (StateInstance origState : originStateMap.values()) {
                 if (retriedStateMap.containsKey(origState.getId())) {
@@ -734,14 +805,19 @@ public class DbAndReportTcStateLogStore extends AbstractStore implements StateLo
     }
 
     private void putLastStateToMap(Map<String, StateInstance> resultMap, StateInstance newState, String key) {
+        // 直接添加
         if (!resultMap.containsKey(key)) {
             resultMap.put(key, newState);
-        } else if (newState.getGmtEnd().after(resultMap.get(key).getGmtEnd())) {
+        }
+        // 之前有相同的状态，旧状态需要给忽略掉
+        else if (newState.getGmtEnd().after(resultMap.get(key).getGmtEnd())) {
             StateInstance oldState = resultMap.remove(key);
             oldState.setIgnoreStatus(true);
 
             resultMap.put(key, newState);
-        } else {
+        }
+        // 新的状态时间早，需要忽略
+        else {
             newState.setIgnoreStatus(true);
         }
     }

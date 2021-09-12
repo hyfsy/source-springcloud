@@ -29,9 +29,14 @@ public class Field implements java.io.Serializable {
      */
     private String name;
 
+    /**
+     * 主键类型
+     */
     private KeyType keyType = KeyType.NULL;
 
     /**
+     * 数据类型
+     *
      * The Type.
      */
     private int type;

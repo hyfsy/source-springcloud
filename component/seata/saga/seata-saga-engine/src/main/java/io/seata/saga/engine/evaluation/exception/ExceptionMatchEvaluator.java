@@ -43,6 +43,7 @@ public class ExceptionMatchEvaluator implements Evaluator {
     @Override
     public boolean evaluate(Map<String, Object> variables) {
 
+        // 校验异常字符串相等
         Object eObj = variables.get(getRootObjectName());
         if (eObj != null && (eObj instanceof Exception) && StringUtils.hasText(exceptionString)) {
 

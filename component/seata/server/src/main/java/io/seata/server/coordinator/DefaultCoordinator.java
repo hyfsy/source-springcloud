@@ -77,6 +77,8 @@ public class DefaultCoordinator extends AbstractTCInboundHandler implements Tran
     private static final int TIMED_TASK_SHUTDOWN_MAX_WAIT_MILLS = 5000;
 
     /**
+     * 这个是非常频繁的操作
+     *
      * The constant COMMITTING_RETRY_PERIOD.
      */
     protected static final long COMMITTING_RETRY_PERIOD = CONFIG.getLong(ConfigurationKeys.COMMITING_RETRY_PERIOD,
@@ -223,6 +225,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler implements Tran
      * @throws TransactionException the transaction exception
      */
     protected void timeoutCheck() throws TransactionException {
+        // 获取所有GlobalSession
         Collection<GlobalSession> allSessions = SessionHolder.getRootSessionManager().allSessions();
         if (CollectionUtils.isEmpty(allSessions)) {
             return;
@@ -237,11 +240,14 @@ public class DefaultCoordinator extends AbstractTCInboundHandler implements Tran
                         + globalSession.getTimeout());
             }
             boolean shouldTimeout = SessionHolder.lockAndExecute(globalSession, () -> {
+                // 不是begin状态，或没有超时
                 if (globalSession.getStatus() != GlobalStatus.Begin || !globalSession.isTimeout()) {
                     return false;
                 }
+                // inactive session
                 globalSession.addSessionLifecycleListener(SessionHolder.getRootSessionManager());
                 globalSession.close();
+                // update status once
                 globalSession.changeStatus(GlobalStatus.TimeoutRollbacking);
 
                 // transaction timeout and start rollbacking event
@@ -260,6 +266,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler implements Tran
             }
             LOGGER.info("Global transaction[{}] is timeout and will be rollback.", globalSession.getXid());
 
+            // update status twice
             globalSession.addSessionLifecycleListener(SessionHolder.getRetryRollbackingSessionManager());
             SessionHolder.getRetryRollbackingSessionManager().addGlobalSession(globalSession);
         });
@@ -285,6 +292,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler implements Tran
                     //The function of this 'return' is 'continue'.
                     return;
                 }
+                // 内部强一直致重试
                 if (isRetryTimeout(now, MAX_ROLLBACK_RETRY_TIMEOUT.toMillis(), rollbackingSession.getBeginTime())) {
                     if (ROLLBACK_RETRY_TIMEOUT_UNLOCK_ENABLE) {
                         rollbackingSession.clean();
@@ -339,6 +347,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler implements Tran
     }
 
     private boolean isRetryTimeout(long now, long timeout, long beginTime) {
+        // ALWAYS_RETRY_BOUNDARY 会一直重试
         return timeout >= ALWAYS_RETRY_BOUNDARY && now - beginTime > timeout;
     }
 
@@ -346,6 +355,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler implements Tran
      * Handle async committing.
      */
     protected void handleAsyncCommitting() {
+        // 获取所有需要异步提交的会话
         Collection<GlobalSession> asyncCommittingSessions = SessionHolder.getAsyncCommittingSessionManager()
             .allSessions();
         if (CollectionUtils.isEmpty(asyncCommittingSessions)) {
@@ -368,6 +378,8 @@ public class DefaultCoordinator extends AbstractTCInboundHandler implements Tran
 
     /**
      * Undo log delete.
+     *
+     * 一般RM端在提交成功或回滚成功后会自动删除
      */
     protected void undoLogDelete() {
         Map<String, Channel> rmChannels = ChannelManager.getRmChannels();
@@ -377,8 +389,10 @@ public class DefaultCoordinator extends AbstractTCInboundHandler implements Tran
             }
             return;
         }
+        // 服务端的默认保存时间
         short saveDays = CONFIG.getShort(ConfigurationKeys.TRANSACTION_UNDO_LOG_SAVE_DAYS,
             UndoLogDeleteRequest.DEFAULT_SAVE_DAYS);
+        // 请求所有的RM,去删除undo_log日志
         for (Map.Entry<String, Channel> channelEntry : rmChannels.entrySet()) {
             String resourceId = channelEntry.getKey();
             UndoLogDeleteRequest deleteRequest = new UndoLogDeleteRequest();
@@ -396,6 +410,11 @@ public class DefaultCoordinator extends AbstractTCInboundHandler implements Tran
      * Init.
      */
     public void init() {
+
+        // 这些是非常频繁的操作
+
+        // 回滚重试
+        // 服务端请求客户端分支事务回滚失败后，这边就会开始请求客户端每秒执行一次回滚请求操作，直到成功
         retryRollbacking.scheduleAtFixedRate(() -> {
             boolean lock = SessionHolder.retryRollbackingLock();
             if (lock) {
@@ -422,6 +441,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler implements Tran
             }
         }, 0, COMMITTING_RETRY_PERIOD, TimeUnit.MILLISECONDS);
 
+        // 处理异步提交好的分支，注册分支获取全局锁后，发送 GlobalCommitRequest，会将GlobalSession状态设置为 AsyncCommiting
         asyncCommitting.scheduleAtFixedRate(() -> {
             boolean lock = SessionHolder.asyncCommittingLock();
             if (lock) {
@@ -435,6 +455,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler implements Tran
             }
         }, 0, ASYNC_COMMITTING_RETRY_PERIOD, TimeUnit.MILLISECONDS);
 
+        // GlobalSession超时检查，设置session状态为 TimeoutRollbacking
         timeoutCheck.scheduleAtFixedRate(() -> {
             boolean lock = SessionHolder.txTimeoutCheckLock();
             if (lock) {
@@ -448,6 +469,7 @@ public class DefaultCoordinator extends AbstractTCInboundHandler implements Tran
             }
         }, 0, TIMEOUT_RETRY_PERIOD, TimeUnit.MILLISECONDS);
 
+        // 1天跑一次
         undoLogDelete.scheduleAtFixedRate(() -> {
             boolean lock = SessionHolder.undoLogDeleteLock();
             if (lock) {

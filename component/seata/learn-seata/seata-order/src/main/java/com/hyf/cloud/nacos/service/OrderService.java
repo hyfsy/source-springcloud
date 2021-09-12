@@ -4,6 +4,7 @@ import com.hyf.cloud.nacos.mapper.OrderMapper;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.Map;
 
 /**
  * @author baB_hyf
@@ -22,5 +23,18 @@ public class OrderService {
 
     public void throwEx() {
         throw new RuntimeException("order");
+    }
+
+    public boolean delete(String orderId) {
+        return orderMapper.delete(orderId);
+    }
+
+    public boolean update(String orderId, String number) {
+        return orderMapper.update(orderId, number);
+    }
+
+    public void selectById(String orderId) {
+        Map<String, Object> order = orderMapper.selectById(orderId);
+        System.out.println(order);
     }
 }

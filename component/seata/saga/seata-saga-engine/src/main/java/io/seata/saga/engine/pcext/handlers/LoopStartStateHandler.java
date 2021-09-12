@@ -58,6 +58,7 @@ public class LoopStartStateHandler implements StateHandler {
         StateMachineConfig stateMachineConfig = (StateMachineConfig)context.getVariable(
             DomainConstants.VAR_NAME_STATEMACHINE_CONFIG);
 
+        // 立马置空临时状态
         instruction.setTemporaryState(null);
 
         Loop loop = LoopTaskUtils.getLoopConfig(context, instruction.getState(context));
@@ -68,6 +69,7 @@ public class LoopStartStateHandler implements StateHandler {
 
         if (null != loop) {
 
+            // loop需要异步支持
             if (!stateMachineConfig.isEnableAsync() || null == stateMachineConfig.getAsyncProcessCtrlEventPublisher()) {
                 throw new EngineExecutionException(
                     "Asynchronous start is disabled. Loop execution will run asynchronous, please set "
@@ -75,13 +77,17 @@ public class LoopStartStateHandler implements StateHandler {
             }
 
             int totalInstances;
+            // forward会通过之前失败的和未开始的来重新加载
             if (DomainConstants.OPERATION_NAME_FORWARD.equals(context.getVariable(DomainConstants.VAR_NAME_OPERATION_NAME))) {
                 LoopTaskUtils.reloadLoopContext(context, instruction.getState(context).getName());
                 totalInstances = loopContextHolder.getNrOfInstances().get() - loopContextHolder.getNrOfCompletedInstances().get();
-            } else {
+            }
+            // 创建一个上下文
+            else {
                 LoopTaskUtils.createLoopCounterContext(context);
                 totalInstances = loopContextHolder.getNrOfInstances().get();
             }
+            // 并行数
             maxInstances = Math.min(loop.getParallel(), totalInstances);
             semaphore = new Semaphore(maxInstances);
             context.setVariable(DomainConstants.LOOP_SEMAPHORE, semaphore);
@@ -90,20 +96,26 @@ public class LoopStartStateHandler implements StateHandler {
             // publish loop tasks
             for (int i = 0; i < totalInstances; i++) {
                 try {
-                    semaphore.acquire();
+                    semaphore.acquire(); // 加锁，保证并行度
 
                     ProcessContextImpl tempContext;
                     // fail end inst should be forward without completion condition check
                     if (!loopContextHolder.getForwardCounterStack().isEmpty()) {
+                        // 失败的loopCounter
                         int failEndLoopCounter = loopContextHolder.getForwardCounterStack().pop();
                         tempContext = (ProcessContextImpl)LoopTaskUtils.createLoopEventContext(context, failEndLoopCounter);
-                    } else if (loopContextHolder.isFailEnd() || LoopTaskUtils.isCompletionConditionSatisfied(context)) {
+                    }
+                    // loop已经失败或条件满足，结束
+                    else if (loopContextHolder.isFailEnd() || LoopTaskUtils.isCompletionConditionSatisfied(context)) {
                         semaphore.release();
                         break;
-                    } else {
+                    }
+                    // 新创建
+                    else {
                         tempContext = (ProcessContextImpl)LoopTaskUtils.createLoopEventContext(context, -1);
                     }
 
+                    // 子状态机需要设置下是否为forward状态
                     if (DomainConstants.OPERATION_NAME_FORWARD.equals(context.getVariable(DomainConstants.VAR_NAME_OPERATION_NAME))) {
                         ((HierarchicalProcessContext)context).setVariableLocally(
                             DomainConstants.VAR_NAME_IS_FOR_SUB_STATMACHINE_FORWARD, LoopTaskUtils.isForSubStateMachineForward(tempContext));
@@ -129,6 +141,7 @@ public class LoopStartStateHandler implements StateHandler {
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug("wait {}ms for loop state [{}] finish", AWAIT_TIMEOUT, instruction.getStateName());
                     }
+                    // 等待loop执行的任务结束，这边一下要拿所有的票据，所以会在此处死循环
                     isFinished = semaphore.tryAcquire(maxInstances, AWAIT_TIMEOUT, TimeUnit.MILLISECONDS);
                 }
 
@@ -147,10 +160,14 @@ public class LoopStartStateHandler implements StateHandler {
         }
 
         if (loopContextHolder.isFailEnd()) {
+            // 获取异常匹配的路由
             String currentExceptionRoute = LoopTaskUtils.decideCurrentExceptionRoute(loopContextList, stateMachineInstance.getStateMachine());
+            // 有就设置为当前的路由
             if (StringUtils.isNotBlank(currentExceptionRoute)) {
                 ((HierarchicalProcessContext)context).setVariableLocally(DomainConstants.VAR_NAME_CURRENT_EXCEPTION_ROUTE, currentExceptionRoute);
-            } else {
+            }
+            else {
+                // 有异常就抛，没有就继续执行剩下的状态
                 for (ProcessContext processContext : loopContextList) {
                     if (processContext.hasVariable(DomainConstants.VAR_NAME_CURRENT_EXCEPTION)) {
                         Exception exception = (Exception)processContext.getVariable(DomainConstants.VAR_NAME_CURRENT_EXCEPTION);

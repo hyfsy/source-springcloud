@@ -99,21 +99,21 @@ public class LockDO {
     }
 
     /**
-     * Gets row key.
-     *
-     * @return the row key
-     */
-    public String getRowKey() {
-        return rowKey;
-    }
-
-    /**
      * Sets row key.
      *
      * @param rowKey the row key
      */
     public void setRowKey(String rowKey) {
         this.rowKey = rowKey;
+    }
+
+    /**
+     * Gets row key.
+     *
+     * @return the row key
+     */
+    public String getRowKey() {
+        return rowKey;
     }
 
     /**

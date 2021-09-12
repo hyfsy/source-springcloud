@@ -76,6 +76,7 @@ public class DataBaseLockManager extends AbstractLockManager implements Initiali
         }
         List<Long> branchIds = branchSessions.stream().map(BranchSession::getBranchId).collect(Collectors.toList());
         try {
+            // delete lock_table
             return getLocker().releaseLock(globalSession.getXid(), branchIds);
         } catch (Exception t) {
             LOGGER.error("unLock globalSession error, xid:{} branchIds:{}", globalSession.getXid(),

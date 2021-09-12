@@ -40,6 +40,7 @@ public class SubStateMachineParser extends AbstractTaskStateParser implements St
         Map<String, Object> nodeMap = (Map<String, Object>)node;
         subStateMachine.setStateMachineName((String)nodeMap.get("StateMachineName"));
 
+        // 构建一个子状态机默认的补偿状态
         if (StringUtils.isEmpty(subStateMachine.getCompensateState())) {
             //build default SubStateMachine compensate state
             CompensateSubStateMachineStateParser compensateSubStateMachineStateParser

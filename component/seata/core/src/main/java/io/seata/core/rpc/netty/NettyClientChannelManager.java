@@ -60,6 +60,7 @@ class NettyClientChannelManager {
 
     NettyClientChannelManager(final NettyPoolableFactory keyPoolableFactory, final Function<String, NettyPoolKey> poolKeyFunction,
                                      final NettyClientConfig clientConfig) {
+        // 创建Channel的对象池
         nettyClientKeyPool = new GenericKeyedObjectPool<>(keyPoolableFactory);
         nettyClientKeyPool.setConfig(getNettyPoolConfig(clientConfig));
         this.poolKeyFunction = poolKeyFunction;
@@ -92,6 +93,7 @@ class NettyClientChannelManager {
      * @return netty channel
      */
     Channel acquireChannel(String serverAddress) {
+        // 缓存中尝试获取
         Channel channelToServer = channels.get(serverAddress);
         if (channelToServer != null) {
             channelToServer = getExistAliveChannel(channelToServer, serverAddress);
@@ -102,6 +104,7 @@ class NettyClientChannelManager {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("will connect to " + serverAddress);
         }
+        // 添加创建锁，开始创建channel
         Object lockObj = CollectionUtils.computeIfAbsent(channelLocks, serverAddress, key -> new Object());
         synchronized (lockObj) {
             return doConnect(serverAddress);
@@ -123,6 +126,7 @@ class NettyClientChannelManager {
                     nettyClientKeyPool.returnObject(poolKeyMap.get(serverAddress), channel);
                     return;
                 }
+                // 销毁该channel，最终也要returnObject
                 if (ch.compareTo(channel) == 0) {
                     if (LOGGER.isInfoEnabled()) {
                         LOGGER.info("return to pool, rm channel:{}", channel);
@@ -146,6 +150,7 @@ class NettyClientChannelManager {
     void destroyChannel(String serverAddress, Channel channel) {
         if (channel == null) { return; }
         try {
+            // 缓存channels中移除
             if (channel.equals(channels.get(serverAddress))) {
                 channels.remove(serverAddress);
             }
@@ -163,11 +168,13 @@ class NettyClientChannelManager {
     void reconnect(String transactionServiceGroup) {
         List<String> availList = null;
         try {
+            // 通过注册中心获取所有TC服务端地址
             availList = getAvailServerList(transactionServiceGroup);
         } catch (Exception e) {
             LOGGER.error("Failed to get available servers: {}", e.getMessage(), e);
             return;
         }
+        // 没有找到，则打印日志提示，查clusterName的目的仅仅是打个日志用
         if (CollectionUtils.isEmpty(availList)) {
             RegistryService registryService = RegistryFactory.getInstance();
             String clusterName = registryService.getServiceGroup(transactionServiceGroup);
@@ -184,6 +191,7 @@ class NettyClientChannelManager {
             }
             return;
         }
+        // 连接TC服务端，获取channel
         for (String serverAddress : availList) {
             try {
                 acquireChannel(serverAddress);
@@ -197,6 +205,7 @@ class NettyClientChannelManager {
         nettyClientKeyPool.invalidateObject(poolKeyMap.get(serverAddress), channel);
     }
 
+    // 缓存添加channel
     void registerChannel(final String serverAddress, final Channel channel) {
         Channel channelToServer = channels.get(serverAddress);
         if (channelToServer != null && channelToServer.isActive()) {
@@ -206,18 +215,21 @@ class NettyClientChannelManager {
     }
 
     private Channel doConnect(String serverAddress) {
+        // 双重检查缓存
         Channel channelToServer = channels.get(serverAddress);
         if (channelToServer != null && channelToServer.isActive()) {
             return channelToServer;
         }
         Channel channelFromPool;
         try {
+            // RegT/RMRequest、Role、ip:port
             NettyPoolKey currentPoolKey = poolKeyFunction.apply(serverAddress);
             NettyPoolKey previousPoolKey = poolKeyMap.putIfAbsent(serverAddress, currentPoolKey);
             if (previousPoolKey != null && previousPoolKey.getMessage() instanceof RegisterRMRequest) {
                 RegisterRMRequest registerRMRequest = (RegisterRMRequest) currentPoolKey.getMessage();
                 ((RegisterRMRequest) previousPoolKey.getMessage()).setResourceIds(registerRMRequest.getResourceIds());
             }
+            // 创建Channel，NettyPoolableFactory makeObject
             channelFromPool = nettyClientKeyPool.borrowObject(poolKeyMap.get(serverAddress));
             channels.put(serverAddress, channelFromPool);
         } catch (Exception exx) {
@@ -227,6 +239,7 @@ class NettyClientChannelManager {
         return channelFromPool;
     }
 
+    // 注册中心获取所有TC服务端地址
     private List<String> getAvailServerList(String transactionServiceGroup) throws Exception {
         List<InetSocketAddress> availInetSocketAddressList = RegistryFactory.getInstance()
                                                                             .lookup(transactionServiceGroup);
@@ -243,6 +256,7 @@ class NettyClientChannelManager {
         if (rmChannel.isActive()) {
             return rmChannel;
         } else {
+            // 睡会儿不断尝试获取channel
             int i = 0;
             for (; i < NettyClientConfig.getMaxCheckAliveRetry(); i++) {
                 try {
@@ -255,6 +269,7 @@ class NettyClientChannelManager {
                     return rmChannel;
                 }
             }
+            // 实在拿不到，就销毁该channel
             if (i == NettyClientConfig.getMaxCheckAliveRetry()) {
                 LOGGER.warn("channel {} is not active after long wait, close it.", rmChannel);
                 releaseChannel(rmChannel, serverAddress);

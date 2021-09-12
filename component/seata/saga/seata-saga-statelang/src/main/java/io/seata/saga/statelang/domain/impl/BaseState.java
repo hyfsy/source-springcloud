@@ -31,6 +31,7 @@ public abstract class BaseState implements State {
     private String type;
     private String comment;
     private String next;
+    // 扩展信息，暂时没用到
     private Map<String, Object> extensions;
     private transient StateMachine stateMachine;
 

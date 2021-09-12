@@ -79,6 +79,7 @@ public class ServiceTaskStateHandler implements StateHandler, InterceptableState
                         state.getName(), serviceName, methodName, input);
             }
 
+            // 子状态机的补偿操作，直接调用引擎的子状态机的compensate方法
             if (state instanceof CompensateSubStateMachineState) {
                 //If it is the compensation of the substate machine,
                 // directly call the state machine's compensate method
@@ -88,6 +89,7 @@ public class ServiceTaskStateHandler implements StateHandler, InterceptableState
                 StateMachineConfig stateMachineConfig = (StateMachineConfig) context.getVariable(
                         DomainConstants.VAR_NAME_STATEMACHINE_CONFIG);
 
+                // SpringBean invoker
                 ServiceInvoker serviceInvoker = stateMachineConfig.getServiceInvokerManager().getServiceInvoker(
                         state.getServiceType());
                 if (serviceInvoker == null) {
@@ -99,6 +101,7 @@ public class ServiceTaskStateHandler implements StateHandler, InterceptableState
                             stateMachineConfig.getApplicationContext());
                 }
 
+                // 获取bean调用方法
                 result = serviceInvoker.invoke(state, input.toArray());
             }
 
@@ -107,6 +110,7 @@ public class ServiceTaskStateHandler implements StateHandler, InterceptableState
                         state.getName(), serviceName, methodName, result);
             }
 
+            // 设置返回参数
             if (result != null) {
                 stateInstance.setOutputParams(result);
                 ((HierarchicalProcessContext) context).setVariableLocally(DomainConstants.VAR_NAME_OUTPUT_PARAMS,
@@ -145,6 +149,7 @@ public class ServiceTaskStateHandler implements StateHandler, InterceptableState
                     FrameworkErrorCode.ObjectNotExists);
         }
 
+        // 拿一个子状态机Id
         String subStateMachineInstId = subInst.get(0).getId();
 
         if (LOGGER.isDebugEnabled()) {
@@ -161,6 +166,7 @@ public class ServiceTaskStateHandler implements StateHandler, InterceptableState
             startParams = (Map<String, Object>) input;
         }
 
+        // 调用子状态机的补偿流程
         StateMachineInstance compensateInst = engine.compensate(subStateMachineInstId, startParams);
         stateInstance.setStatus(compensateInst.getCompensationStatus());
 

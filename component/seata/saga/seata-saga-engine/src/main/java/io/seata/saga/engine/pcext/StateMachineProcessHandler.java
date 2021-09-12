@@ -57,6 +57,10 @@ public class StateMachineProcessHandler implements ProcessHandler {
             interceptors = ((InterceptableStateHandler)stateHandler).getInterceptors();
         }
 
+        // 拦截器链处理
+        // InSagaBranchHandlerInterceptor 添加xid等上下文信息
+        // LoopTaskHandlerInterceptor loop处理
+        // ServiceTaskHandlerInterceptor 正常流程的初始化
         List<StateHandlerInterceptor> executedInterceptors = null;
         Exception exception = null;
         try {
@@ -74,6 +78,7 @@ public class StateMachineProcessHandler implements ProcessHandler {
             exception = e;
             throw e;
         } finally {
+            // 倒着执行成功过的拦截器
             if (CollectionUtils.isNotEmpty(executedInterceptors)) {
                 for (int i = executedInterceptors.size() - 1; i >= 0; i--) {
                     StateHandlerInterceptor interceptor = executedInterceptors.get(i);

@@ -442,11 +442,14 @@ public class LogStoreDataBaseDAO implements LogStore {
      * the public modifier only for test
      */
     public void initTransactionNameSize() {
+        // 获取 global_table 的 transaction_name 列信息
         ColumnInfo columnInfo = queryTableStructure(globalTable, TRANSACTION_NAME_KEY);
         if (columnInfo == null) {
             LOGGER.warn("{} table or {} column not found", globalTable, TRANSACTION_NAME_KEY);
             return;
         }
+        // 获取类型长度，varchar(128) -> 128
+        // 用于截断
         this.transactionNameColumnSize = columnInfo.getColumnSize();
     }
 

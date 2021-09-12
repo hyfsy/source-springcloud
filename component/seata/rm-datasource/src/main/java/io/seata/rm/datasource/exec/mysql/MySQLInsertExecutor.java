@@ -80,7 +80,9 @@ public class MySQLInsertExecutor extends BaseInsertExecutor implements Defaultab
 
     @Override
     public Map<String,List<Object>> getPkValues() throws SQLException {
+        // keyName -> keyValueList
         Map<String,List<Object>> pkValuesMap = null;
+        // pkNameList
         List<String> pkColumnNameList = getTableMeta().getPrimaryKeyOnlyName();
         Boolean isContainsPk = containsPK();
         //when there is only one pk in the table
@@ -88,6 +90,7 @@ public class MySQLInsertExecutor extends BaseInsertExecutor implements Defaultab
             if (isContainsPk) {
                 pkValuesMap = getPkValuesByColumn();
             }
+            // 查询自增主键
             else if (containsColumns()) {
                 pkValuesMap = getPkValuesByAuto();
             }
@@ -130,6 +133,7 @@ public class MySQLInsertExecutor extends BaseInsertExecutor implements Defaultab
             throw new ShouldNeverHappenException();
         }
 
+        // 获取当前Statement语句执行后生成的所有的key
         ResultSet genKeys;
         try {
             genKeys = statementProxy.getGeneratedKeys();

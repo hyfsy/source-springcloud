@@ -41,11 +41,13 @@ public class ParameterUtils {
     public static List<Object> createInputParams(ExpressionFactoryManager expressionFactoryManager,
                                                  StateInstanceImpl stateInstance,
                                                  AbstractTaskState serviceTaskState, Object variablesFrom) {
+        // 配置的入参
         List<Object> inputAssignments = serviceTaskState.getInput();
         if (CollectionUtils.isEmpty(inputAssignments)) {
             return new ArrayList<>(0);
         }
 
+        // 初始化入参表达式
         List<Object> inputExpressions = serviceTaskState.getInputExpressions();
         if (inputExpressions == null) {
             synchronized (serviceTaskState) {
@@ -53,12 +55,14 @@ public class ParameterUtils {
                 if (inputExpressions == null) {
                     inputExpressions = new ArrayList<>(inputAssignments.size());
                     for (Object inputAssignment : inputAssignments) {
+                        // 通过key解析出表达式对象
                         inputExpressions.add(createValueExpression(expressionFactoryManager, inputAssignment));
                     }
                 }
                 serviceTaskState.setInputExpressions(inputExpressions);
             }
         }
+        // 通过表达式解析出对应的值
         List<Object> inputValues = new ArrayList<>(inputExpressions.size());
         for (Object valueExpression : inputExpressions) {
             Object value = getValue(valueExpression, variablesFrom, stateInstance);
@@ -97,6 +101,7 @@ public class ParameterUtils {
     }
 
     public static Object getValue(Object valueExpression, Object variablesFrom, StateInstance stateInstance) {
+        // 直接getValue获取
         if (valueExpression instanceof Expression) {
             Object value = ((Expression)valueExpression).getValue(variablesFrom);
             if (value != null && stateInstance != null && StringUtils.isEmpty(stateInstance.getBusinessKey())
@@ -104,7 +109,9 @@ public class ParameterUtils {
                 stateInstance.setBusinessKey(String.valueOf(value));
             }
             return value;
-        } else if (valueExpression instanceof Map) {
+        }
+        // map递归解析
+        else if (valueExpression instanceof Map) {
             Map<String, Object> mapValueExpression = (Map<String, Object>)valueExpression;
             Map<String, Object> mapValue = new LinkedHashMap<>();
             mapValueExpression.forEach((key, value) -> {
@@ -114,7 +121,9 @@ public class ParameterUtils {
                 }
             });
             return mapValue;
-        } else if (valueExpression instanceof List) {
+        }
+        // list递归解析
+        else if (valueExpression instanceof List) {
             List<Object> listValueExpression = (List<Object>)valueExpression;
             List<Object> listValue = new ArrayList<>(listValueExpression.size());
             for (Object aValueExpression : listValueExpression) {
@@ -131,39 +140,51 @@ public class ParameterUtils {
 
         Object valueExpression;
 
+        // 直接返回
         if (paramAssignment instanceof Expression) {
             valueExpression = paramAssignment;
-        } else if (paramAssignment instanceof Map) {
+        }
+        // map遍历递归
+        else if (paramAssignment instanceof Map) {
             Map<String, Object> paramMapAssignment = (Map<String, Object>)paramAssignment;
             Map<String, Object> paramMap = new LinkedHashMap<>(paramMapAssignment.size());
             paramMapAssignment.forEach((paramName, valueAssignment) -> {
                 paramMap.put(paramName, createValueExpression(expressionFactoryManager, valueAssignment));
             });
             valueExpression = paramMap;
-        } else if (paramAssignment instanceof List) {
+        }
+        // list遍历递归
+        else if (paramAssignment instanceof List) {
             List<Object> paramListAssignment = (List<Object>)paramAssignment;
             List<Object> paramList = new ArrayList<>(paramListAssignment.size());
             for (Object aParamAssignment : paramListAssignment) {
                 paramList.add(createValueExpression(expressionFactoryManager, aParamAssignment));
             }
             valueExpression = paramList;
-        } else if (paramAssignment instanceof String && ((String)paramAssignment).startsWith("$")) {
+        }
+        // 直接解析
+        else if (paramAssignment instanceof String && ((String)paramAssignment).startsWith("$")) {
 
             String expressionStr = (String)paramAssignment;
             int expTypeStart = expressionStr.indexOf("$");
             int expTypeEnd = expressionStr.indexOf(".", expTypeStart);
 
+            // $xxx.abc -> xxx
+            // $Default.abc -> Default
+            // Default -> SpEL
             String expressionType = null;
             if (expTypeStart >= 0 && expTypeEnd > expTypeStart) {
                 expressionType = expressionStr.substring(expTypeStart + 1, expTypeEnd);
             }
 
+            // $xxx.abc -> abc
             int expEnd = expressionStr.length();
             String expressionContent = null;
             if (expTypeEnd > 0 && expEnd > expTypeEnd) {
                 expressionContent = expressionStr.substring(expTypeEnd + 1, expEnd);
             }
 
+            // parse Expression
             ExpressionFactory expressionFactory = expressionFactoryManager.getExpressionFactory(expressionType);
             if (expressionFactory == null) {
                 throw new IllegalArgumentException("Cannot get ExpressionFactory by Type[" + expressionType + "]");

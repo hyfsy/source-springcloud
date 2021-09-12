@@ -63,6 +63,7 @@ public class ResourceManagerXA extends AbstractDataSourceCacheResourceManager {
         XAXid xaBranchXid = XAXidBuilder.build(xid, branchId);
         Resource resource = dataSourceCache.get(resourceId);
         if (resource instanceof AbstractDataSourceProxyXA) {
+            // 获取当前事务提交后保存的连接
             try (ConnectionProxyXA connectionProxyXA = ((AbstractDataSourceProxyXA)resource).getConnectionForXAFinish(xaBranchXid)) {
                 if (committed) {
                     connectionProxyXA.xaCommit(xid, branchId, applicationData);
@@ -75,6 +76,7 @@ public class ResourceManagerXA extends AbstractDataSourceCacheResourceManager {
                 }
             } catch (XAException | SQLException sqle) {
                 if (sqle instanceof XAException) {
+                    // xaId没有，被其他情况处理了，直接结束
                     if (((XAException)sqle).errorCode == XAException.XAER_NOTA) {
                         if (committed) {
                             return BranchStatus.PhaseTwo_Committed;

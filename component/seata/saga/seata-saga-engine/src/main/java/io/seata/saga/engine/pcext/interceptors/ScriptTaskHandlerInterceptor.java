@@ -53,6 +53,8 @@ public class ScriptTaskHandlerInterceptor implements StateHandlerInterceptor {
     @Override
     public void preProcess(ProcessContext context) throws EngineExecutionException {
 
+        // 主要就是处理下脚本需要的变量参数
+
         StateInstruction instruction = context.getInstruction(StateInstruction.class);
 
         StateMachineInstance stateMachineInstance = (StateMachineInstance)context.getVariable(
@@ -88,6 +90,8 @@ public class ScriptTaskHandlerInterceptor implements StateHandlerInterceptor {
 
     @Override
     public void postProcess(ProcessContext context, Exception exp) throws EngineExecutionException {
+
+        // 主要就处理下输出的参数和Catch/异常等状态
 
         StateInstruction instruction = context.getInstruction(StateInstruction.class);
         ScriptTaskStateImpl state = (ScriptTaskStateImpl)instruction.getState(context);

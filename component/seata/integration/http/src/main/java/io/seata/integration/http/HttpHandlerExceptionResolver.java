@@ -33,6 +33,7 @@ public class HttpHandlerExceptionResolver extends AbstractHandlerExceptionResolv
     @Override
     protected ModelAndView doResolveException(HttpServletRequest request, HttpServletResponse httpServletResponse, Object o, Exception e) {
 
+        // 清除事务xid
         XidResource.cleanXid(request.getHeader(RootContext.KEY_XID));
         return null;
     }

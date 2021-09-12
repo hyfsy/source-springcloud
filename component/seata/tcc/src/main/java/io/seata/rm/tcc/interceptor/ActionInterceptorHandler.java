@@ -66,6 +66,7 @@ public class ActionInterceptorHandler {
         //set action name
         actionContext.setActionName(actionName);
 
+        // 初始化上下文数据，并注册分支
         //Creating Branch Record
         String branchId = doTccActionLogStore(method, arguments, businessAction, actionContext);
         actionContext.setBranchId(branchId);
@@ -85,6 +86,7 @@ public class ActionInterceptorHandler {
         //the final parameters of the try method
         ret.put(Constants.TCC_METHOD_ARGUMENTS, arguments);
         //the final result
+        // 执行业务逻辑
         ret.put(Constants.TCC_METHOD_RESULT, targetCallback.execute());
         return ret;
     }
@@ -100,6 +102,10 @@ public class ActionInterceptorHandler {
      */
     protected String doTccActionLogStore(Method method, Object[] arguments, TwoPhaseBusinessAction businessAction,
                                          BusinessActionContext actionContext) {
+
+        // 初始化上下文数据，一个map，see context
+        // 变成 applicationData，注册到TC的分支事务中
+
         String actionName = actionContext.getActionName();
         String xid = actionContext.getXid();
         //
@@ -116,6 +122,7 @@ public class ActionInterceptorHandler {
         Map<String, Object> applicationContext = new HashMap<>(4);
         applicationContext.put(Constants.TCC_ACTION_CONTEXT, context);
         String applicationContextStr = JSON.toJSONString(applicationContext);
+        // 分支注册
         try {
             //registry branch record
             Long branchId = DefaultResourceManager.get().branchRegister(BranchType.TCC, actionName, null, xid,
@@ -181,14 +188,17 @@ public class ActionInterceptorHandler {
                         throw new IllegalArgumentException("@BusinessActionContextParameter 's params can not null");
                     }
                     Object paramObject = arguments[i];
+                    // List使用
                     int index = param.index();
                     //List, get by index
                     if (index >= 0) {
                         @SuppressWarnings("unchecked")
                         Object targetParam = ((List<Object>)paramObject).get(index);
+                        // 指示对象中的属性上还有该注解，需要一并添加
                         if (param.isParamInProperty()) {
                             context.putAll(ActionContextUtil.fetchContextFromObject(targetParam));
                         } else {
+                            // 使用给定的名称，否则使用field名称
                             context.put(param.paramName(), targetParam);
                         }
                     } else {

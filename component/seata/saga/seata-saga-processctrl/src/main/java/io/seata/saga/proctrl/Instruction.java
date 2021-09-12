@@ -16,6 +16,8 @@
 package io.seata.saga.proctrl;
 
 /**
+ * 当前状态机流转的指令，可代表不同的处理状态
+ *
  * Instruction
  *
  * @author jin.xie

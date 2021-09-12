@@ -18,6 +18,8 @@ package io.seata.saga.proctrl;
 import java.util.Map;
 
 /**
+ * 上下文对象，存放很多的参数供不同的状态实现使用
+ *
  * Process Context
  *
  * @author jin.xie

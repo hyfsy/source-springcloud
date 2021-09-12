@@ -63,23 +63,28 @@ public class LoopTaskHandlerInterceptor implements StateHandlerInterceptor {
             StateInstruction instruction = context.getInstruction(StateInstruction.class);
             AbstractTaskState currentState = (AbstractTaskState)instruction.getState(context);
 
+            // 当前循环的编号 0-n
             int loopCounter;
             Loop loop;
 
+            // 补偿情况，感觉loop内补偿的情况不可能达到
             // get loop config
             if (context.hasVariable(DomainConstants.VAR_NAME_CURRENT_COMPEN_TRIGGER_STATE)) {
                 // compensate condition should get stateToBeCompensated 's config
                 CompensationHolder compensationHolder = CompensationHolder.getCurrent(context, true);
+                // 从被补偿的状态中获取loop信息
                 StateInstance stateToBeCompensated = compensationHolder.getStatesNeedCompensation().get(currentState.getName());
                 AbstractTaskState compensateState = (AbstractTaskState)stateToBeCompensated.getStateMachineInstance()
                     .getStateMachine().getState(EngineUtils.getOriginStateName(stateToBeCompensated));
                 loop = compensateState.getLoop();
                 loopCounter = LoopTaskUtils.reloadLoopCounter(stateToBeCompensated.getName());
             } else {
+                // 上下文获取，LoopStartStateHandler放进来的
                 loop = currentState.getLoop();
                 loopCounter = (int)context.getVariable(DomainConstants.LOOP_COUNTER);
             }
 
+            // 设置两个变量放入上下文内
             Collection collection = LoopContextHolder.getCurrent(context, true).getCollection();
             Map<String, Object> contextVariables = (Map<String, Object>)context.getVariable(
                 DomainConstants.VAR_NAME_STATEMACHINE_CONTEXT);
@@ -96,6 +101,7 @@ public class LoopTaskHandlerInterceptor implements StateHandlerInterceptor {
         if (context.hasVariable(DomainConstants.VAR_NAME_IS_LOOP_STATE)) {
 
             StateInstance stateInstance = (StateInstance)context.getVariable(DomainConstants.VAR_NAME_STATE_INST);
+            // 没成功就失败
             if (null != stateInstance && !LoopContextHolder.getCurrent(context, true).isFailEnd()) {
                 if (!ExecutionStatus.SU.equals(stateInstance.getStatus())) {
                     LoopContextHolder.getCurrent(context, true).setFailEnd(true);
@@ -107,6 +113,7 @@ public class LoopTaskHandlerInterceptor implements StateHandlerInterceptor {
                 exp = e;
             }
 
+            // 有异常，需要把信号量先释放
             if (null != e) {
                 if (context.hasVariable(DomainConstants.LOOP_SEMAPHORE)) {
                     Semaphore semaphore = (Semaphore)context.getVariable(DomainConstants.LOOP_SEMAPHORE);
@@ -116,9 +123,12 @@ public class LoopTaskHandlerInterceptor implements StateHandlerInterceptor {
 
             if (null != exp) {
                 LoopContextHolder.getCurrent(context, true).setFailEnd(true);
-            } else {
+            }
+            // 没成功，没异常，表示正常执行结束，增加完成数
+            else {
                 LoopContextHolder.getCurrent(context, true).getNrOfCompletedInstances().incrementAndGet();
             }
+            // 减少活跃数
             LoopContextHolder.getCurrent(context, true).getNrOfActiveInstances().decrementAndGet();
 
         }

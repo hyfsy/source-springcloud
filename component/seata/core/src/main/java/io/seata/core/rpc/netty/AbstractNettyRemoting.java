@@ -106,6 +106,7 @@ public abstract class AbstractNettyRemoting implements Disposable {
     protected final List<RpcHook> rpcHooks = EnhancedServiceLoader.loadAll(RpcHook.class);
 
     public void init() {
+        // 定时清理超时的future
         timerExecutor.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {

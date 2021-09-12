@@ -147,15 +147,18 @@ public class ChannelManager {
         Version.checkVersion(resourceManagerRequest.getVersion());
         Set<String> dbkeySet = dbKeytoSet(resourceManagerRequest.getResourceIds());
         RpcContext rpcContext;
+        // 当前channel没有注册
         if (!IDENTIFIED_CHANNELS.containsKey(channel)) {
             rpcContext = buildChannelHolder(NettyPoolKey.TransactionRole.RMROLE, resourceManagerRequest.getVersion(),
                 resourceManagerRequest.getApplicationId(), resourceManagerRequest.getTransactionServiceGroup(),
                 resourceManagerRequest.getResourceIds(), channel);
+            // 添加当前channel
             rpcContext.holdInIdentifiedChannels(IDENTIFIED_CHANNELS);
         } else {
             rpcContext = IDENTIFIED_CHANNELS.get(channel);
             rpcContext.addResources(dbkeySet);
         }
+        // 注册RM信息
         if (dbkeySet == null || dbkeySet.isEmpty()) { return; }
         for (String resourceId : dbkeySet) {
             String clientIp;

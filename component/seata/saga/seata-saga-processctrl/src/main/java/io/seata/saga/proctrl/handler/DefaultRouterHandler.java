@@ -66,10 +66,14 @@ public class DefaultRouterHandler implements RouterHandler {
                 throw new FrameworkException(FrameworkErrorCode.ProcessRouterNotFound);
             }
 
+            // 路由出下一个指令
             Instruction instruction = processRouter.route(context);
+            // 结束状态机
             if (instruction == null) {
                 LOGGER.info("route instruction is null, process end");
-            } else {
+            }
+            // 发布下个指令
+            else {
                 context.setInstruction(instruction);
 
                 eventPublisher.publish(context);

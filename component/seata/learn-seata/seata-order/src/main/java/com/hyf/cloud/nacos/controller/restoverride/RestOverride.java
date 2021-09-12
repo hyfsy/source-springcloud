@@ -1,0 +1,17 @@
+package com.hyf.cloud.nacos.controller.restoverride;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+/**
+ * 标记接口
+ *
+ * @author baB_hyf
+ * @date 2021/01/08
+ */
+@Target({ElementType.TYPE, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface RestOverride {
+}

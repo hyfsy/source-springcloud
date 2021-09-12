@@ -56,6 +56,7 @@ public abstract class AbstractLocker implements Locker {
             lockDO.setBranchId(rowLock.getBranchId());
             lockDO.setPk(rowLock.getPk());
             lockDO.setResourceId(rowLock.getResourceId());
+            // 自动生成rowKey
             lockDO.setRowKey(getRowKey(rowLock.getResourceId(), rowLock.getTableName(), rowLock.getPk()));
             lockDO.setXid(rowLock.getXid());
             lockDO.setTransactionId(rowLock.getTransactionId());

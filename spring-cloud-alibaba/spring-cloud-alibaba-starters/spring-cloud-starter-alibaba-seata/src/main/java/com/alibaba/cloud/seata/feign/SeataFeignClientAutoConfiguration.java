@@ -31,6 +31,7 @@ import org.springframework.context.annotation.Scope;
 
 /**
  * @author xiaojing
+ * @see SeataFeignClient
  */
 
 @Configuration(proxyBeanMethods = false)

@@ -20,10 +20,13 @@ import javax.sql.DataSource;
 import io.seata.spring.annotation.datasource.SeataAutoDataSourceProxyCreator;
 import io.seata.spring.annotation.datasource.SeataDataSourceBeanPostProcessor;
 import io.seata.spring.boot.autoconfigure.properties.SeataProperties;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 import static io.seata.spring.annotation.datasource.AutoDataSourceProxyRegistrar.BEAN_NAME_SEATA_AUTO_DATA_SOURCE_PROXY_CREATOR;
 import static io.seata.spring.annotation.datasource.AutoDataSourceProxyRegistrar.BEAN_NAME_SEATA_DATA_SOURCE_BEAN_POST_PROCESSOR;
@@ -33,10 +36,12 @@ import static io.seata.spring.annotation.datasource.AutoDataSourceProxyRegistrar
  *
  * @author xingfudeshi@gmail.com
  */
+@AutoConfigureAfter(DataSourceAutoConfiguration.class)
 @ConditionalOnBean(DataSource.class)
 @ConditionalOnExpression("${seata.enable:true} && ${seata.enableAutoDataSourceProxy:true} && ${seata.enable-auto-data-source-proxy:true}")
 public class SeataDataSourceAutoConfiguration {
 
+    // 已有的数据源进行代理、缓存，并解包装，转为使用aop重新代理
     /**
      * The bean seataDataSourceBeanPostProcessor.
      */
@@ -46,6 +51,7 @@ public class SeataDataSourceAutoConfiguration {
         return new SeataDataSourceBeanPostProcessor(seataProperties.getExcludesForAutoProxying(), seataProperties.getDataSourceProxyMode());
     }
 
+    // 创建代理数据源，使用上面创建的代理数据源进行实际的操作
     /**
      * The bean seataAutoDataSourceProxyCreator.
      */

@@ -129,6 +129,9 @@ public class SeataPropertiesAutoConfiguration {
 
     }
 
+    /**
+     * 方便获取 ApplicationContext
+     */
     @Bean(BEAN_NAME_SPRING_APPLICATION_CONTEXT_PROVIDER)
     @ConditionalOnMissingBean(name = {BEAN_NAME_SPRING_APPLICATION_CONTEXT_PROVIDER})
     public SpringApplicationContextProvider springApplicationContextProvider() {

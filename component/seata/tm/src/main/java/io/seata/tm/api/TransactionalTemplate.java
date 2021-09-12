@@ -60,6 +60,7 @@ public class TransactionalTemplate {
         Propagation propagation = txInfo.getPropagation();
         SuspendedResourcesHolder suspendedResourcesHolder = null;
         try {
+            // 处理事务的隔离级别
             switch (propagation) {
                 case NOT_SUPPORTED:
                     // If transaction is existing, suspend it.
@@ -113,25 +114,29 @@ public class TransactionalTemplate {
                 tx = GlobalTransactionContext.createNew();
             }
 
+            // 锁配置
             // set current tx config to holder
             GlobalLockConfig previousConfig = replaceGlobalLockConfig(txInfo);
 
             try {
                 // 2. If the tx role is 'GlobalTransactionRole.Launcher', send the request of beginTransaction to TC,
                 //    else do nothing. Of course, the hooks will still be triggered.
+                // 通知TC注册xid，一个全局事务
                 beginTransaction(txInfo, tx);
 
                 Object rs;
                 try {
                     // Do Your Business
-                    rs = business.execute();
+                    rs = business.execute(); // 其他的操作都在Connection/Statement处代理了
                 } catch (Throwable ex) {
                     // 3. The needed business exception to rollback.
+                    // 回滚全局事务
                     completeTransactionAfterThrowing(txInfo, tx, ex);
                     throw ex;
                 }
 
                 // 4. everything is fine, commit.
+                // 提交全局事务
                 commitTransaction(tx);
 
                 return rs;

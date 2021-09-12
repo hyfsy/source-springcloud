@@ -81,6 +81,7 @@ public class TCCResourceManager extends AbstractResourceManager {
     @Override
     public BranchStatus branchCommit(BranchType branchType, String xid, long branchId, String resourceId,
                                      String applicationData) throws TransactionException {
+        // 获取注册的TCC资源，包括调用对象和方法
         TCCResource tccResource = (TCCResource)tccResourceCache.get(resourceId);
         if (tccResource == null) {
             throw new ShouldNeverHappenException(String.format("TCC resource is not exist, resourceId: %s", resourceId));
@@ -91,9 +92,11 @@ public class TCCResourceManager extends AbstractResourceManager {
             throw new ShouldNeverHappenException(String.format("TCC resource is not available, resourceId: %s", resourceId));
         }
         try {
+            // 初始化上下文参数对象
             //BusinessActionContext
             BusinessActionContext businessActionContext = getBusinessActionContext(xid, branchId, resourceId,
                 applicationData);
+            // 反射调用commit方法
             Object ret = commitMethod.invoke(targetTCCBean, businessActionContext);
             LOGGER.info("TCC resource commit result : {}, xid: {}, branchId: {}, resourceId: {}", ret, xid, branchId, resourceId);
             boolean result;
@@ -173,6 +176,7 @@ public class TCCResourceManager extends AbstractResourceManager {
     protected BusinessActionContext getBusinessActionContext(String xid, long branchId, String resourceId,
                                                              String applicationData) {
         //transfer tcc applicationData to Context
+        // 还原applicationData为业务执行上下文
         Map tccContext = StringUtils.isBlank(applicationData) ? new HashMap() : (Map)JSON.parse(applicationData);
         Map actionContextMap = (Map)tccContext.get(Constants.TCC_ACTION_CONTEXT);
         BusinessActionContext businessActionContext = new BusinessActionContext(

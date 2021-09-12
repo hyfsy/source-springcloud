@@ -66,6 +66,7 @@ public class ActionContextUtil {
                             context.putAll(fetchContextFromObject(paramObject));
                         }
                     } else {
+                        // 使用field名称
                         if (StringUtils.isBlank(annotation.paramName())) {
                             context.put(fieldName, paramObject);
                         } else {

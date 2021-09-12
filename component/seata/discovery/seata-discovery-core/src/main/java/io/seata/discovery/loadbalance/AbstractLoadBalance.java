@@ -31,6 +31,7 @@ public abstract class AbstractLoadBalance implements LoadBalance {
         if (CollectionUtils.isEmpty(invokers)) {
             return null;
         }
+        // 只有一个服务，直接返回
         if (invokers.size() == 1) {
             return invokers.get(0);
         }

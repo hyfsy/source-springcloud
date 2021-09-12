@@ -126,7 +126,9 @@ public final class ConfigurationFactory {
             } catch (Exception e) {
                 LOGGER.error("failed to load extConfiguration:{}", e.getMessage(), e);
             }
-        } else {
+        }
+        // 加载给定配置
+        else {
             configuration = EnhancedServiceLoader
                     .load(ConfigurationProvider.class, Objects.requireNonNull(configType).name()).provide();
         }

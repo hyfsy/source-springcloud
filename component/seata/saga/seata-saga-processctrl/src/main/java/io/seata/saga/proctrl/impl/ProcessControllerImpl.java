@@ -42,6 +42,7 @@ public class ProcessControllerImpl implements ProcessController {
 
             businessProcessor.process(context);
 
+            // 路由完才算当前状态处理完毕，这边需要注意！
             businessProcessor.route(context);
 
         } catch (FrameworkException fex) {

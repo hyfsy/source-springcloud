@@ -75,15 +75,21 @@ public abstract class AbstractCore implements Core {
                                String applicationData, String lockKeys) throws TransactionException {
         GlobalSession globalSession = assertGlobalSessionNotNull(xid, false);
         return SessionHolder.lockAndExecute(globalSession, () -> {
+            // 检查session状态
             globalSessionStatusCheck(globalSession);
+            // 添加处理程序
             globalSession.addSessionLifecycleListener(SessionHolder.getRootSessionManager());
+            // new一个分支session
             BranchSession branchSession = SessionHelper.newBranchByGlobal(globalSession, branchType, resourceId,
                     applicationData, lockKeys, clientId);
             MDC.put(RootContext.MDC_KEY_BRANCH_ID, String.valueOf(branchSession.getBranchId()));
+            // 分支session加锁，添加行锁，lock_table
             branchSessionLock(globalSession, branchSession);
             try {
+                // add branch_table
                 globalSession.addBranch(branchSession);
             } catch (RuntimeException ex) {
+                // 失败解锁，让RM端回滚
                 branchSessionUnlock(branchSession);
                 throw new BranchTransactionException(FailedToAddBranch, String
                         .format("Failed to store branch xid = %s branchId = %s", globalSession.getXid(),
@@ -128,6 +134,7 @@ public abstract class AbstractCore implements Core {
         return globalSession;
     }
 
+    // 客户端分支向服务端报告状态
     @Override
     public void branchReport(BranchType branchType, String xid, long branchId, BranchStatus status,
                              String applicationData) throws TransactionException {
@@ -152,6 +159,7 @@ public abstract class AbstractCore implements Core {
         return true;
     }
 
+    // 服务端请求客户端分支进行提交
     @Override
     public BranchStatus branchCommit(GlobalSession globalSession, BranchSession branchSession) throws TransactionException {
         try {
@@ -176,6 +184,7 @@ public abstract class AbstractCore implements Core {
         return response.getBranchStatus();
     }
 
+    // 服务端请求客户端分支进行回滚
     @Override
     public BranchStatus branchRollback(GlobalSession globalSession, BranchSession branchSession) throws TransactionException {
         try {

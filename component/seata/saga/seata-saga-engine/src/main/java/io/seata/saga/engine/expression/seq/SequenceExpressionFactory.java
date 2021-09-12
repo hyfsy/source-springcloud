@@ -21,6 +21,8 @@ import io.seata.saga.engine.sequence.SeqGenerator;
 import org.springframework.util.StringUtils;
 
 /**
+ * 用于生成BusinessKey的
+ *
  * Sequence expression factory
  *
  * @author lorne.cl

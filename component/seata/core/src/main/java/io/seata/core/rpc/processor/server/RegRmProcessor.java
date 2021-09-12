@@ -49,6 +49,7 @@ public class RegRmProcessor implements RemotingProcessor {
 
     public RegRmProcessor(RemotingServer remotingServer) {
         this.remotingServer = remotingServer;
+        // 检查是否支持注册TM和RM，默认都为true
         this.checkAuthHandler = EnhancedServiceLoader.load(RegisterCheckAuthHandler.class);
     }
 

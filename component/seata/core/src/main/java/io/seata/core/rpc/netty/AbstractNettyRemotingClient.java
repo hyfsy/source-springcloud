@@ -108,12 +108,14 @@ public abstract class AbstractNettyRemotingClient extends AbstractNettyRemoting 
 
     @Override
     public void init() {
+        // 定时重连接客户端的channel
         timerExecutor.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
                 clientChannelManager.reconnect(getTransactionServiceGroup());
             }
         }, SCHEDULE_DELAY_MILLS, SCHEDULE_INTERVAL_MILLS, TimeUnit.MILLISECONDS);
+        // 请求的批发送
         if (NettyClientConfig.isEnableClientBatchSendRequest()) {
             mergeSendExecutorService = new ThreadPoolExecutor(MAX_MERGE_SEND_THREAD,
                 MAX_MERGE_SEND_THREAD,
@@ -123,6 +125,7 @@ public abstract class AbstractNettyRemotingClient extends AbstractNettyRemoting 
             mergeSendExecutorService.submit(new MergedSendRunnable());
         }
         super.init();
+        // netty client bootstrap start
         clientBootstrap.start();
     }
 
@@ -131,17 +134,21 @@ public abstract class AbstractNettyRemotingClient extends AbstractNettyRemoting 
         super(messageExecutor);
         this.transactionRole = transactionRole;
         clientBootstrap = new NettyClientBootstrap(nettyClientConfig, eventExecutorGroup, transactionRole);
+        // 客户端的请求处理器
         clientBootstrap.setChannelHandlers(new ClientHandler());
+        // 对应RM/TM的连接管理器
         clientChannelManager = new NettyClientChannelManager(
             new NettyPoolableFactory(this, clientBootstrap), getPoolKeyFunction(), nettyClientConfig);
     }
 
     @Override
     public Object sendSyncRequest(Object msg) throws TimeoutException {
+        // 负载均衡
         String serverAddress = loadBalance(getTransactionServiceGroup(), msg);
         int timeoutMillis = NettyClientConfig.getRpcRequestTimeout();
         RpcMessage rpcMessage = buildRequestMessage(msg, ProtocolConstants.MSGTYPE_RESQUEST_SYNC);
 
+        // 请求的批量发送
         // send batch message
         // put message into basketMap, @see MergedSendRunnable
         if (NettyClientConfig.isEnableClientBatchSendRequest()) {
@@ -325,12 +332,14 @@ public abstract class AbstractNettyRemotingClient extends AbstractNettyRemoting 
                         return;
                     }
 
+                    // 合并消息
                     MergedWarpMessage mergeMessage = new MergedWarpMessage();
                     while (!basket.isEmpty()) {
                         RpcMessage msg = basket.poll();
                         mergeMessage.msgs.add((AbstractMessage) msg.getBody());
                         mergeMessage.msgIds.add(msg.getId());
                     }
+                    // 日志记录
                     if (mergeMessage.msgIds.size() > 1) {
                         printMergeMessageLog(mergeMessage);
                     }
@@ -418,19 +427,24 @@ public abstract class AbstractNettyRemotingClient extends AbstractNettyRemoting 
         public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
             if (evt instanceof IdleStateEvent) {
                 IdleStateEvent idleStateEvent = (IdleStateEvent) evt;
+                // 读超时，需要关闭该通道
                 if (idleStateEvent.state() == IdleState.READER_IDLE) {
                     if (LOGGER.isInfoEnabled()) {
                         LOGGER.info("channel {} read idle.", ctx.channel());
                     }
+                    // 工厂销毁该对象
                     try {
                         String serverAddress = NetUtil.toStringAddress(ctx.channel().remoteAddress());
                         clientChannelManager.invalidateObject(serverAddress, ctx.channel());
                     } catch (Exception exx) {
                         LOGGER.error(exx.getMessage());
-                    } finally {
+                    }
+                    // 释放该channel资源
+                    finally {
                         clientChannelManager.releaseChannel(ctx.channel(), getAddressFromContext(ctx));
                     }
                 }
+                // 写超时作为客户端的心跳
                 if (idleStateEvent == IdleStateEvent.WRITER_IDLE_STATE_EVENT) {
                     try {
                         if (LOGGER.isDebugEnabled()) {

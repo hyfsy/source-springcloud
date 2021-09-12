@@ -44,6 +44,7 @@ import java.util.concurrent.TimeoutException;
  */
 public class DefaultTransactionManager implements TransactionManager {
 
+    // 注册全局事务，添加一条global_table
     @Override
     public String begin(String applicationId, String transactionServiceGroup, String name, int timeout)
         throws TransactionException {
@@ -57,6 +58,7 @@ public class DefaultTransactionManager implements TransactionManager {
         return response.getXid();
     }
 
+    // 全局提交
     @Override
     public GlobalStatus commit(String xid) throws TransactionException {
         GlobalCommitRequest globalCommit = new GlobalCommitRequest();
@@ -65,6 +67,7 @@ public class DefaultTransactionManager implements TransactionManager {
         return response.getGlobalStatus();
     }
 
+    // 全局回滚
     @Override
     public GlobalStatus rollback(String xid) throws TransactionException {
         GlobalRollbackRequest globalRollback = new GlobalRollbackRequest();
@@ -73,6 +76,7 @@ public class DefaultTransactionManager implements TransactionManager {
         return response.getGlobalStatus();
     }
 
+    // 获取当前全局事务的状态
     @Override
     public GlobalStatus getStatus(String xid) throws TransactionException {
         GlobalStatusRequest queryGlobalStatus = new GlobalStatusRequest();
@@ -81,6 +85,7 @@ public class DefaultTransactionManager implements TransactionManager {
         return response.getGlobalStatus();
     }
 
+    // 报告当前分支事务的状态
     @Override
     public GlobalStatus globalReport(String xid, GlobalStatus globalStatus) throws TransactionException {
         GlobalReportRequest globalReport = new GlobalReportRequest();

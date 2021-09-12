@@ -52,7 +52,9 @@ public class TaskStateRouter implements StateRouter {
     @Override
     public Instruction route(ProcessContext context, State state) throws EngineExecutionException {
 
+        // 获取当前执行完的指令
         StateInstruction stateInstruction = context.getInstruction(StateInstruction.class);
+        // 状态机end了或fail了才会end
         if (stateInstruction.isEnd()) {
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info(
@@ -62,11 +64,13 @@ public class TaskStateRouter implements StateRouter {
             return null;
         }
 
+        // loop中，不能给下个指令
         // check if in loop async condition
         if (Boolean.TRUE.equals(context.getVariable(DomainConstants.VAR_NAME_IS_LOOP_STATE))) {
             return null;
         }
 
+        // 正在触发补偿状态中，获取下一个需要补偿的状态，补偿的状态不支持Next
         //The current CompensationTriggerState can mark the compensation process is started and perform compensation
         // route processing.
         State compensationTriggerState = (State)context.getVariable(
@@ -75,6 +79,7 @@ public class TaskStateRouter implements StateRouter {
             return compensateRoute(context, compensationTriggerState);
         }
 
+        // 异常的Next路由
         //There is an exception route, indicating that an exception is thrown, and the exception route is prioritized.
         String next = (String)context.getVariable(DomainConstants.VAR_NAME_CURRENT_EXCEPTION_ROUTE);
 
@@ -84,18 +89,21 @@ public class TaskStateRouter implements StateRouter {
             next = state.getNext();
         }
 
+        // Choice路由
         //If next is empty, the state selected by the Choice state was taken.
         if (!StringUtils.hasLength(next) && context.hasVariable(DomainConstants.VAR_NAME_CURRENT_CHOICE)) {
             next = (String)context.getVariable(DomainConstants.VAR_NAME_CURRENT_CHOICE);
             context.removeVariable(DomainConstants.VAR_NAME_CURRENT_CHOICE);
         }
 
+        // 没有就结束状态机
         if (!StringUtils.hasLength(next)) {
             return null;
         }
 
         StateMachine stateMachine = state.getStateMachine();
 
+        // 状态机中找下一个状态，找不到抛异常
         State nextState = stateMachine.getState(next);
         if (nextState == null) {
             throw new EngineExecutionException("Next state[" + next + "] is not exits",
@@ -104,6 +112,7 @@ public class TaskStateRouter implements StateRouter {
 
         stateInstruction.setStateName(next);
 
+        // 下个状态为loop状态，设变设置下临时状态
         if (null != LoopTaskUtils.getLoopConfig(context, nextState)) {
             stateInstruction.setTemporaryState(new LoopStartStateImpl());
         }
@@ -116,6 +125,7 @@ public class TaskStateRouter implements StateRouter {
         //If there is already a compensation state that has been executed,
         // it is judged whether it is wrong or unsuccessful,
         // and the compensation process is interrupted.
+        // 校验前一个补偿的状态是否出错了，出错了需要立即终止状态机
         if (Boolean.TRUE.equals(context.getVariable(DomainConstants.VAR_NAME_FIRST_COMPENSATION_STATE_STARTED))) {
 
             Exception exception = (Exception)context.getVariable(DomainConstants.VAR_NAME_CURRENT_EXCEPTION);
@@ -131,10 +141,12 @@ public class TaskStateRouter implements StateRouter {
             }
         }
 
+        // 获取需要补偿的状态
         Stack<StateInstance> stateStackToBeCompensated = CompensationHolder.getCurrent(context, true)
             .getStateStackNeedCompensation();
         if (!stateStackToBeCompensated.isEmpty()) {
 
+            // 一次执行一个状态，执行完会再次路由到这
             StateInstance stateToBeCompensated = stateStackToBeCompensated.pop();
 
             StateMachine stateMachine = (StateMachine)context.getVariable(DomainConstants.VAR_NAME_STATEMACHINE);
@@ -145,17 +157,20 @@ public class TaskStateRouter implements StateRouter {
 
                 StateInstruction instruction = context.getInstruction(StateInstruction.class);
 
+                // 获取补偿的状态
                 State compensateState = null;
                 String compensateStateName = taskState.getCompensateState();
                 if (StringUtils.hasLength(compensateStateName)) {
                     compensateState = stateMachine.getState(compensateStateName);
                 }
 
+                // 子状态机的情况，找默认生成的补偿状态
                 if (compensateState == null && (taskState instanceof SubStateMachine)) {
                     compensateState = ((SubStateMachine)taskState).getCompensateStateObject();
                     instruction.setTemporaryState(compensateState);
                 }
 
+                // 没有补偿，结束状态机
                 if (compensateState == null) {
                     EngineUtils.endStateMachine(context);
                     return null;
@@ -163,6 +178,7 @@ public class TaskStateRouter implements StateRouter {
 
                 instruction.setStateName(compensateState.getName());
 
+                // 添加将进行补偿的状态
                 CompensationHolder.getCurrent(context, true).addToBeCompensatedState(compensateState.getName(),
                     stateToBeCompensated);
 
@@ -179,8 +195,10 @@ public class TaskStateRouter implements StateRouter {
             }
         }
 
+        // 所有状态都补偿完毕
         context.removeVariable(DomainConstants.VAR_NAME_CURRENT_COMPEN_TRIGGER_STATE);
 
+        // 获取补偿触发器的下一个状态，没有就结束
         String compensationTriggerStateNext = compensationTriggerState.getNext();
         if (StringUtils.isEmpty(compensationTriggerStateNext)) {
             EngineUtils.endStateMachine(context);

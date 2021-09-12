@@ -18,6 +18,8 @@ package io.seata.saga.engine.store;
 import io.seata.saga.statelang.domain.StateMachine;
 
 /**
+ * CRUD state-lang *.json处理过后的数据
+ *
  * State language definition store
  *
  * @author lorne.cl

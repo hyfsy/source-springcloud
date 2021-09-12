@@ -132,11 +132,14 @@ public class NettyClientBootstrap implements RemotingBootstrap {
                 public void initChannel(SocketChannel ch) {
                     ChannelPipeline pipeline = ch.pipeline();
                     pipeline.addLast(
+                            // channel心跳检查用
                         new IdleStateHandler(nettyClientConfig.getChannelMaxReadIdleSeconds(),
                             nettyClientConfig.getChannelMaxWriteIdleSeconds(),
                             nettyClientConfig.getChannelMaxAllIdleSeconds()))
+                            // 请求响应的编解码
                         .addLast(new ProtocolV1Decoder())
                         .addLast(new ProtocolV1Encoder());
+                    // ClientHandler 客户端的请求处理器
                     if (channelHandlers != null) {
                         addChannelPipelineLast(ch, channelHandlers);
                     }
@@ -168,6 +171,7 @@ public class NettyClientBootstrap implements RemotingBootstrap {
      */
     public Channel getNewChannel(InetSocketAddress address) {
         Channel channel;
+        // 连接服务端，获取channel
         ChannelFuture f = this.bootstrap.connect(address);
         try {
             f.await(this.nettyClientConfig.getConnectTimeoutMillis(), TimeUnit.MILLISECONDS);

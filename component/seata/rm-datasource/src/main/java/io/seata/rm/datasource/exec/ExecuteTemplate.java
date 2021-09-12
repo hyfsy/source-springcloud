@@ -66,12 +66,14 @@ public class ExecuteTemplate {
                                                      StatementProxy<S> statementProxy,
                                                      StatementCallback<T, S> statementCallback,
                                                      Object... args) throws SQLException {
+        // 不需要全局锁（默认不需要） & 不是AT模式（默认是）
         if (!RootContext.requireGlobalLock() && BranchType.AT != RootContext.getBranchType()) {
             // Just work as original statement
             return statementCallback.execute(statementProxy.getTargetStatement(), args);
         }
 
         String dbType = statementProxy.getConnectionProxy().getDbType();
+        // 执行器处理时，获取sql的一些元数据信息
         if (CollectionUtils.isEmpty(sqlRecognizers)) {
             sqlRecognizers = SQLVisitorFactory.get(
                     statementProxy.getTargetSQL(),
@@ -79,6 +81,7 @@ public class ExecuteTemplate {
         }
         Executor<T> executor;
         if (CollectionUtils.isEmpty(sqlRecognizers)) {
+            // 空的，直接执行sql
             executor = new PlainExecutor<>(statementProxy, statementCallback);
         } else {
             if (sqlRecognizers.size() == 1) {
@@ -95,6 +98,7 @@ public class ExecuteTemplate {
                     case DELETE:
                         executor = new DeleteExecutor<>(statementProxy, statementCallback, sqlRecognizer);
                         break;
+                        // 查询有行锁，隔离级别变为 读已提交
                     case SELECT_FOR_UPDATE:
                         executor = new SelectForUpdateExecutor<>(statementProxy, statementCallback, sqlRecognizer);
                         break;

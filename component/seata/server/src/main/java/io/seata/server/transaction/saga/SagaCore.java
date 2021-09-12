@@ -58,6 +58,7 @@ public class SagaCore extends AbstractCore {
     @Override
     public void globalSessionStatusCheck(GlobalSession globalSession) throws GlobalTransactionException {
         // SAGA type accept forward(retry) operation on timeout or commit fail, forward operation will register remaining branches
+        // 清除父类检查状态逻辑
     }
 
     @Override
@@ -103,7 +104,7 @@ public class SagaCore extends AbstractCore {
         try {
             BranchStatus branchStatus = branchCommit(globalSession, SessionHelper.newBranch(BranchType.SAGA,
                     globalSession.getXid(), -1, getSagaResourceId(globalSession), globalSession.getStatus().name()));
-
+// branchStatus = BranchStatus.PhaseTwo_Committed
             switch (branchStatus) {
                 case PhaseTwo_Committed:
                     removeAllBranches(globalSession);
@@ -161,7 +162,7 @@ public class SagaCore extends AbstractCore {
         try {
             BranchStatus branchStatus = branchRollback(globalSession, SessionHelper.newBranch(BranchType.SAGA,
                     globalSession.getXid(), -1, getSagaResourceId(globalSession), globalSession.getStatus().name()));
-
+// branchStatus = BranchStatus.PhaseTwo_Rollbacked
             switch (branchStatus) {
                 case PhaseTwo_Rollbacked:
                     removeAllBranches(globalSession);
@@ -195,12 +196,13 @@ public class SagaCore extends AbstractCore {
 
     @Override
     public void doGlobalReport(GlobalSession globalSession, String xid, GlobalStatus globalStatus) throws TransactionException {
-        if (GlobalStatus.Committed.equals(globalStatus)) {
+        // 和globalCommit类似的功能
+        if (GlobalStatus.Committed.equals(globalStatus)) { // 执行成功
             removeAllBranches(globalSession);
             SessionHelper.endCommitted(globalSession);
             LOGGER.info("Global[{}] committed", globalSession.getXid());
-        } else if (GlobalStatus.Rollbacked.equals(globalStatus)
-                || GlobalStatus.Finished.equals(globalStatus)) {
+        } else if (GlobalStatus.Rollbacked.equals(globalStatus) // 补偿成功
+                || GlobalStatus.Finished.equals(globalStatus)) { // 失败
             removeAllBranches(globalSession);
             SessionHelper.endRollbacked(globalSession);
             LOGGER.info("Global[{}] rollbacked", globalSession.getXid());
@@ -208,12 +210,15 @@ public class SagaCore extends AbstractCore {
             globalSession.changeStatus(globalStatus);
             LOGGER.info("Global[{}] reporting is successfully done. status[{}]", globalSession.getXid(), globalSession.getStatus());
 
+            // 补偿重试
             if (GlobalStatus.RollbackRetrying.equals(globalStatus)
                     || GlobalStatus.TimeoutRollbackRetrying.equals(globalStatus)
                     || GlobalStatus.UnKnown.equals(globalStatus)) {
                 globalSession.queueToRetryRollback();
                 LOGGER.info("Global[{}] will retry rollback", globalSession.getXid());
-            } else if (GlobalStatus.CommitRetrying.equals(globalStatus)) {
+            }
+            // 状态机继续执行重试
+            else if (GlobalStatus.CommitRetrying.equals(globalStatus)) {
                 globalSession.queueToRetryCommit();
                 LOGGER.info("Global[{}] will retry commit", globalSession.getXid());
             }

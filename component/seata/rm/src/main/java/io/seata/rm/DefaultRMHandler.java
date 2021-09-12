@@ -46,6 +46,7 @@ public class DefaultRMHandler extends AbstractRMHandler {
     }
 
     protected void initRMHandlers() {
+        // RM相关的请求处理器
         List<AbstractRMHandler> allRMHandlers = EnhancedServiceLoader.loadAll(AbstractRMHandler.class);
         if (CollectionUtils.isNotEmpty(allRMHandlers)) {
             for (AbstractRMHandler rmHandler : allRMHandlers) {

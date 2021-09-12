@@ -77,7 +77,9 @@ public class SessionHolder {
      */
     public static final String DEFAULT_SESSION_STORE_FILE_DIR = "sessionStore";
 
+    // 管理所有的GlobalSession
     private static SessionManager ROOT_SESSION_MANAGER;
+    // 方便获取相关状态的所有GlobalSession
     private static SessionManager ASYNC_COMMITTING_SESSION_MANAGER;
     private static SessionManager RETRY_COMMITTING_SESSION_MANAGER;
     private static SessionManager RETRY_ROLLBACKING_SESSION_MANAGER;
@@ -156,14 +158,17 @@ public class SessionHolder {
                     case TimeoutRollbacked:
                     case TimeoutRollbackFailed:
                     case Finished:
+                        // 会话已经结束，可直接删除
                         removeGlobalSessions.add(globalSession);
                         break;
                     case AsyncCommitting:
+                        // 文件才需要恢复，数据库或redis的情况都能直接查询出来
                         if (storeMode == StoreMode.FILE) {
                             queueToAsyncCommitting(globalSession);
                         }
                         break;
                     default: {
+                        // 文件才需要恢复
                         if (storeMode == StoreMode.FILE) {
                             lockBranchSessions(globalSession.getSortedBranches());
 
@@ -189,6 +194,7 @@ public class SessionHolder {
                     }
                 }
             }
+            // 删除session
             for (GlobalSession globalSession : removeGlobalSessions) {
                 removeInErrorState(globalSession);
             }

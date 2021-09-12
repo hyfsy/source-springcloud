@@ -165,6 +165,7 @@ public class DataBaseSessionManager extends AbstractSessionManager
     @Override
     public Collection<GlobalSession> allSessions() {
         // get by taskName
+        // or different 'status'
         if (SessionHolder.ASYNC_COMMITTING_SESSION_MANAGER_NAME.equalsIgnoreCase(taskName)) {
             return findGlobalSessions(new SessionCondition(GlobalStatus.AsyncCommitting));
         } else if (SessionHolder.RETRY_COMMITTING_SESSION_MANAGER_NAME.equalsIgnoreCase(taskName)) {

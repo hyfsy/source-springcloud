@@ -129,10 +129,13 @@ public class DefaultCore implements Core {
         GlobalSession session = GlobalSession.createGlobalSession(applicationId, transactionServiceGroup, name,
             timeout);
         MDC.put(RootContext.MDC_KEY_XID, session.getXid());
+        // 监听器为主要的处理机制
         session.addSessionLifecycleListener(SessionHolder.getRootSessionManager());
 
+        // 添加global_table记录
         session.begin();
 
+        // 发布事件，没人接收
         // transaction start event
         eventBus.post(new GlobalTransactionEvent(session.getTransactionId(), GlobalTransactionEvent.ROLE_TC,
             session.getTransactionName(), applicationId, transactionServiceGroup, session.getBeginTime(), null, session.getStatus()));
@@ -152,11 +155,16 @@ public class DefaultCore implements Core {
         boolean shouldCommit = SessionHolder.lockAndExecute(globalSession, () -> {
             // Highlight: Firstly, close the session, then no more branch can be registered.
             globalSession.closeAndClean();
+            // 不是begin,说明出错了，不进行提交
             if (globalSession.getStatus() == GlobalStatus.Begin) {
+                // AT | PhaseOne_Failed
                 if (globalSession.canBeCommittedAsync()) {
+                    // set status to apply async commit. see DefaultCoordinator#asyncCommitting
                     globalSession.asyncCommit();
                     return false;
-                } else {
+                }
+                // 貌似不会走
+                else {
                     globalSession.changeStatus(GlobalStatus.Committing);
                     return true;
                 }
@@ -178,6 +186,9 @@ public class DefaultCore implements Core {
         }
     }
 
+    // retrying 为 false，表示非定时调度处理的，也就是当前类直接处理的，就不需要重试，定时调度的才需要重试
+    // retrying 起名不太好，应该叫 noNeedAddQueue，入重试队列
+    // @see DefaultCoordinator
     @Override
     public boolean doGlobalCommit(GlobalSession globalSession, boolean retrying) throws TransactionException {
         boolean success = true;
@@ -196,23 +207,31 @@ public class DefaultCore implements Core {
                 }
 
                 BranchStatus currentStatus = branchSession.getStatus();
+                // 失败要发起回滚，不能再提交了？
+                // 不应该全局回滚吗？
                 if (currentStatus == BranchStatus.PhaseOne_Failed) {
                     globalSession.removeBranch(branchSession);
                     return CONTINUE;
                 }
                 try {
+                    // 请求客户端，获取分支事务提交后的状态
                     BranchStatus branchStatus = getCore(branchSession.getBranchType()).branchCommit(globalSession, branchSession);
 
                     switch (branchStatus) {
                         case PhaseTwo_Committed:
+                            // delete branch_table, lock_table
+                            // lock_table map one branch_table
                             globalSession.removeBranch(branchSession);
                             return CONTINUE;
                         case PhaseTwo_CommitFailed_Unretryable:
+                            // continue to keep asynccommit
                             if (globalSession.canBeCommittedAsync()) {
                                 LOGGER.error(
                                     "Committing branch transaction[{}], status: PhaseTwo_CommitFailed_Unretryable, please check the business log.", branchSession.getBranchId());
                                 return CONTINUE;
-                            } else {
+                            }
+                            // finished
+                            else {
                                 SessionHelper.endCommitFailed(globalSession);
                                 LOGGER.error("Committing global transaction[{}] finally failed, caused by branch transaction[{}] commit failed.", globalSession.getXid(), branchSession.getBranchId());
                                 return false;
@@ -222,24 +241,31 @@ public class DefaultCore implements Core {
                                 globalSession.queueToRetryCommit();
                                 return false;
                             }
+                            // continue to keep asynccommit
                             if (globalSession.canBeCommittedAsync()) {
                                 LOGGER.error("Committing branch transaction[{}], status:{} and will retry later",
                                     branchSession.getBranchId(), branchStatus);
                                 return CONTINUE;
-                            } else {
+                            }
+                            // 不能异步重试提交，只能提示全局事务提交失败了
+                            else {
                                 LOGGER.error(
                                     "Committing global transaction[{}] failed, caused by branch transaction[{}] commit failed, will retry later.", globalSession.getXid(), branchSession.getBranchId());
                                 return false;
                             }
                     }
-                } catch (Exception ex) {
+                }
+                // 分支事务提交出现异常，直接重试
+                catch (Exception ex) {
                     StackTraceLogger.error(LOGGER, ex, "Committing branch transaction exception: {}",
                         new String[] {branchSession.toString()});
+                    // retrying to keep asynccommit
                     if (!retrying) {
-                        globalSession.queueToRetryCommit();
+                        globalSession.queueToRetryCommit(); // 入队开始重试
                         throw new TransactionException(ex);
                     }
                 }
+                // retrying to keep asynccommit
                 return CONTINUE;
             });
             // Return if the result is not null
@@ -255,6 +281,8 @@ public class DefaultCore implements Core {
         }
         //If success and there is no branch, end the global transaction.
         if (success && globalSession.getBranchSessions().isEmpty()) {
+            // delete lock_table, global_table
+            // 即使抛异常，该GlobalSession还在库里，状态也不对，会被查询出retry
             SessionHelper.endCommitted(globalSession);
 
             // committed event
@@ -306,6 +334,7 @@ public class DefaultCore implements Core {
         } else {
             Boolean result = SessionHelper.forEach(globalSession.getReverseSortedBranches(), branchSession -> {
                 BranchStatus currentBranchStatus = branchSession.getStatus();
+                // 阶段一都失败了，说明没有回滚的必要，可直接删除
                 if (currentBranchStatus == BranchStatus.PhaseOne_Failed) {
                     globalSession.removeBranch(branchSession);
                     return CONTINUE;

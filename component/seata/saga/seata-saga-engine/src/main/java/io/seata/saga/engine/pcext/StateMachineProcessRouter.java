@@ -48,11 +48,14 @@ public class StateMachineProcessRouter implements ProcessRouter {
 
         StateInstruction stateInstruction = context.getInstruction(StateInstruction.class);
 
+        // 优先选择临时状态的下一跳状态
         State state;
         if (stateInstruction.getTemporaryState() != null) {
-            state = stateInstruction.getTemporaryState();
+            state = stateInstruction.getTemporaryState(); // 临时状态，专门用于路由，使用一次后移除
             stateInstruction.setTemporaryState(null);
-        } else {
+        }
+        // 当前状态
+        else {
             StateMachineConfig stateMachineConfig = (StateMachineConfig)context.getVariable(
                 DomainConstants.VAR_NAME_STATEMACHINE_CONFIG);
             StateMachine stateMachine = stateMachineConfig.getStateMachineRepository().getStateMachine(
@@ -82,6 +85,7 @@ public class StateMachineProcessRouter implements ProcessRouter {
                 }
             }
 
+            // 路由
             instruction = router.route(context, state);
 
         } catch (Exception e) {
@@ -97,6 +101,7 @@ public class StateMachineProcessRouter implements ProcessRouter {
 
             //if 'Succeed' or 'Fail' State did not configured, we must end the state machine
             if (instruction == null && !stateInstruction.isEnd()) {
+                // 结束状态机
                 EngineUtils.endStateMachine(context);
             }
         }

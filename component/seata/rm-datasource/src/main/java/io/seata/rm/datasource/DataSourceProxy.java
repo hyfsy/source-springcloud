@@ -41,6 +41,8 @@ import static io.seata.common.DefaultValues.DEFAULT_TABLE_META_CHECKER_INTERVAL;
 /**
  * The type Data source proxy.
  *
+ * 代理的作用是返回代理连接对象，所有的操作在连接那处理
+ *
  * @author sharajava
  */
 public class DataSourceProxy extends AbstractDataSourceProxy implements Resource {
@@ -98,6 +100,7 @@ public class DataSourceProxy extends AbstractDataSourceProxy implements Resource
 
     private void init(DataSource dataSource, String resourceGroupId) {
         this.resourceGroupId = resourceGroupId;
+        // 获取数据源的元数据信息
         try (Connection connection = dataSource.getConnection()) {
             jdbcUrl = connection.getMetaData().getURL();
             dbType = JdbcUtils.getDbType(jdbcUrl);
@@ -107,7 +110,9 @@ public class DataSourceProxy extends AbstractDataSourceProxy implements Resource
         } catch (SQLException e) {
             throw new IllegalStateException("can not init dataSource", e);
         }
+        // 向TC注册RM
         DefaultResourceManager.get().registerResource(this);
+        // 定时同步表结构，默认false
         if (ENABLE_TABLE_META_CHECKER_ENABLE) {
             tableMetaExcutor.scheduleAtFixedRate(() -> {
                 try (Connection connection = dataSource.getConnection()) {

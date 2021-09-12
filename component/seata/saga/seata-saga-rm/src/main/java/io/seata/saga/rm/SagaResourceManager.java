@@ -85,17 +85,25 @@ public class SagaResourceManager extends AbstractResourceManager {
     public BranchStatus branchCommit(BranchType branchType, String xid, long branchId, String resourceId,
                                      String applicationData) throws TransactionException {
         try {
+            // 提交，表示让状态机向前进
             StateMachineInstance machineInstance = StateMachineEngineHolder.getStateMachineEngine().forward(xid, null);
 
+            // 状态机执行成功，表示提交成功
             if (ExecutionStatus.SU.equals(machineInstance.getStatus())
                 && machineInstance.getCompensationStatus() == null) {
                 return BranchStatus.PhaseTwo_Committed;
-            } else if (ExecutionStatus.SU.equals(machineInstance.getCompensationStatus())) {
+            }
+            // 补偿成功，表示回滚成功
+            else if (ExecutionStatus.SU.equals(machineInstance.getCompensationStatus())) {
                 return BranchStatus.PhaseTwo_Rollbacked;
-            } else if (ExecutionStatus.FA.equals(machineInstance.getCompensationStatus()) || ExecutionStatus.UN.equals(
+            }
+            // 补偿失败或未知（可继续补偿），表示回滚失败可重试
+            else if (ExecutionStatus.FA.equals(machineInstance.getCompensationStatus()) || ExecutionStatus.UN.equals(
                 machineInstance.getCompensationStatus())) {
                 return BranchStatus.PhaseTwo_RollbackFailed_Retryable;
-            } else if (ExecutionStatus.FA.equals(machineInstance.getStatus())
+            }
+            // 失败没有补偿操作，表示一阶段失败？
+            else if (ExecutionStatus.FA.equals(machineInstance.getStatus())
                 && machineInstance.getCompensationStatus() == null) {
                 return BranchStatus.PhaseOne_Failed;
             }
@@ -128,10 +136,15 @@ public class SagaResourceManager extends AbstractResourceManager {
     public BranchStatus branchRollback(BranchType branchType, String xid, long branchId, String resourceId,
                                        String applicationData) throws TransactionException {
         try {
+            // 重新加载状态机实例，没有的数据会查库
             StateMachineInstance stateMachineInstance = StateMachineEngineHolder.getStateMachineEngine().reloadStateMachineInstance(xid);
+
+            // 状态机都没有了，直接算回滚成功了
             if (stateMachineInstance == null) {
                 return BranchStatus.PhaseTwo_Rollbacked;
             }
+
+            // 回滚超时了，通过 recoverStrategy 来决定继续回滚还是前进（forward）
             if (RecoverStrategy.Forward.equals(stateMachineInstance.getStateMachine().getRecoverStrategy())
                 && (GlobalStatus.TimeoutRollbacking.name().equals(applicationData)
                         || GlobalStatus.TimeoutRollbackRetrying.name().equals(applicationData))) {
@@ -139,8 +152,10 @@ public class SagaResourceManager extends AbstractResourceManager {
                 return BranchStatus.PhaseTwo_CommitFailed_Retryable;
             }
 
+            // 执行状态机补偿操作
             stateMachineInstance = StateMachineEngineHolder.getStateMachineEngine().compensate(xid,
                 null);
+            // 状态机补偿状态执行成功，算回滚成功
             if (ExecutionStatus.SU.equals(stateMachineInstance.getCompensationStatus())) {
                 return BranchStatus.PhaseTwo_Rollbacked;
             }
@@ -154,6 +169,8 @@ public class SagaResourceManager extends AbstractResourceManager {
         } catch (Exception e) {
             LOGGER.error("StateMachine compensate failed, xid: " + xid, e);
         }
+
+        // 默认回滚可重试
         return BranchStatus.PhaseTwo_RollbackFailed_Retryable;
     }
 

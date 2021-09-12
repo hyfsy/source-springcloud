@@ -1,0 +1,259 @@
+{
+  "Name": "reduceStoreAndMoney",
+  "Comment": "测试减少库存和毛爷爷",
+  "Version": "0.0.1",
+  "StartState": "TestCompensateExecuteState",
+  "States": {
+    "ReduceStore": {
+      "Type": "ServiceTask",
+      "Comment": "状态的注释",
+      // 状态信息是否持久化
+      // 默认是true, 查询类的服务可以配置为false, 执行日志不进行存储提高性能
+      // 不过建议先保持默认，这样在查询执行日志比较全，真的要做性能调优再配，一般不会有性能问题
+      "IsPersist": true,
+      // 状态是否是为了更新前一个状态的状态
+      // 默认是false, 如果配置了CompensateState则默认是true, 有补偿服务的服务肯定是数据更新类服务
+      "IsForUpdate": true,
+      //
+      "IsForCompensation": false,
+      // 当前状态的补偿状态
+      "CompensateState": "ReduceMoney111",
+      // FailState
+      // 重试的状态，持久化日志是否基于上次失败的状态日志更新，还是新增一个重试日志
+      "IsRetryPersistModeUpdate": false,
+      // 补偿的状态，持久化日志是否基于上次补偿的状态日志更新，还是新增一个补偿日志
+      "IsCompensatePersistModeUpdate": false,
+      // 分支回滚时的恢复策略，Forward/Compensate，回滚超时使用
+      "RecoverStrategy": "Forward",
+      // 服务对象的查找方式
+      "ServiceType": "SpringBean",
+      // 异步调用服务，会忽略服务的返回结果
+      "IsAsync": false,
+      // 反射调用方法信息
+      "ServiceName": "storeService",
+      // SpringBean
+      "ServiceMethod": "reduce",
+      "ParameterTypes": [
+        "java.lang.String",
+        "java.util.Map"
+      ],
+      // "Next": "ReduceMoney",
+      // 方法入参表达式及值，表达式的值从startParams中获取
+      "Input": [
+        "param1",
+        {
+          "param2_1": "$.[test_1]",
+          "param2_2": {
+            "a": 1,
+            "b": 2
+          }
+        }
+      ],
+      // 异常重试
+      "Retry": [
+        {
+          "Exceptions": [
+            // "java.lang.IllegalArgumentException",
+            "java.lang.NullPointerException"
+          ],
+          // IntervalSeconds * 1000 * BackoffRate * MaxAttempts
+          "IntervalSeconds": 1,
+          "MaxAttempts": 5,
+          "BackoffRate": 1
+          // 下一次重试间隔相对于上一次重试间隔的倍数
+        },
+        // 为网络异常的情况才匹配
+        {
+          "IntervalSeconds": 1,
+          "MaxAttempts": 5,
+          "BackoffRate": 1
+        }
+      ],
+      // 异常处理
+      "Catch": [
+        {
+          "Exceptions": [
+            "java.lang.IllegalArgumentException"
+          ],
+          "Next": "ReduceMoney"
+        }
+      ],
+      // 异常映射状态
+      "Status": {
+        //        "$Exception{java.lang.IllegalArgumentException}": "UN", // currentException
+        //        "$Exception{java.lang.NullPointerException}": "UN",
+        //        "#root == null || #root.size() == 0": "UN", // outputParams,
+        //                "1 != 1": "UN"
+        "1 == 1": "UN"
+      },
+      "Output": {
+        // 返回结果，可转换为其他状态的入参
+        "first_result": "$.#root"
+      },
+      // Loop循环事务
+      "Loop": {
+        "Parallel": 8,
+        // 从startParams中获取，用于框架获取需要循环遍历的集合对象
+        "Collection": "$.[test_loop_collection]",
+        // 集合单个元素名称, 用于在分支事务中获取元素值, 默认: loopElement
+        "ElementVariableName": "loopElementVariableName",
+        // 集合下标名称, 用于在分支事务中获取元素下标, 默认: loopCounter
+        "ElementIndexName": "loopElementIndexName",
+        // 自定义循环结束条件, 不写默认全部执行完成, 即: [nrOfInstances] == [nrOfCompletedInstances]
+        //        "CompletionCondition": "1 == 1"
+        "CompletionCondition": "[nrOfCompletedInstances] / [nrOfInstances] >= 0.6"
+
+        // 在循环任务中, 其每次事务出参会存放于一个 List: loopResult中, 在事务上下文中可以通过 loopResult获取事务的运行结果集合, 并遍历获取单次执行结果
+
+        // Loop 上下文参数
+        //    nrOfInstances: 循环实例总数
+        //    nrOfActiveInstances: 当前活动的实例总数
+        //    nrOfCompletedInstances: 当前完成的实例总数
+        //    loopResult: 循环实例执行的结果集合
+      }
+    },
+    "ReduceMoney": {
+      "Type": "ServiceTask",
+      "ServiceName": "fundService",
+      "ServiceMethod": "reduce",
+      "CompensateState": "FailState",
+      "Next": "CompensationTriggerState"
+    },
+    // 状态机正常结束，不一定代表状态机成功结束，这点需要注意
+    // 是否成功要看每个"状态"是否都成功
+    "SucceedState": {
+      "Type": "Succeed"
+    },
+    "FailState": {
+      "Type": "Fail",
+      // 两个都变成上下文参数
+      "ErrorCode": "error",
+      "Message": "事务执行失败"
+    },
+    "ChoiceState": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Expression": "#root == true",
+          "Next": "SucceedState"
+        },
+        {
+          "Expression": "#root == false",
+          "Next": "FailState"
+        }
+      ],
+      // 优先Next
+      "Next": "FailState",
+      "Default": "SucceedState"
+    },
+    "ScriptTaskState": {
+      "Type": "ScriptTask",
+      // 通过jdk的 ScriptEngineManager 实现
+      "ScriptType": "groovy",
+      "ScriptContent": "if (throwEx) { throw new RuntimeException(\"testScriptTask\") } else { v1 + \" + \" + v2 + \" = \" + (v1 + v2) }",
+      "Input": [
+        // 脚本只支持第一个且唯一的一个map
+        {
+          "v1": "1",
+          "v2": 2,
+          "throwEx": true
+        },
+        // 被无视掉
+        {
+          "throwEx": false
+        }
+      ],
+      "Output": {
+        "r1": "$.#root"
+      }
+    },
+    // 由 Catch 或者 Choices 属性路由到，灵活，可以自己控制是否回滚
+    "CompensationTriggerState": {
+      "Type": "CompensationTrigger",
+      "IsForCompensation": false,
+      // 补偿成功后路由的状态,
+      "Next": "SucceedState",
+      "Comment": "注释说明",
+      "Extensions": {
+        "a": "a_v"
+      }
+    },
+    // 太复杂的流程可以考虑用子状态机来复用，子状态机会多生成一行 stateMachineInstance 记录，但对性能影响应该不大
+    "SubStateMachineState": {
+      "Type": "SubStateMachine",
+      "StateMachineName": "reduceStoreAndMoneySub",
+      // 不指定会生成一个默认的补偿状态
+      // 可以不配置, 系统会自动创建它的补偿state, 子状态机的补偿实际就是调用子状态机的compensate方法, 所以用户并不需要自己实现一个对子状态机的补偿服务
+      // 子状态机虽然是一个状态，但一般不需要补偿，它里面的状态才要补偿，所以系统会默认生成一个子状态机的状态的补偿触发器
+//      "CompensationState": "CompensateSubStateMachineState",
+      "Input": [
+        {
+          "input1": "111"
+        }
+      ],
+      "Output": {
+        "result": false
+      },
+      "Next": "TestCompensateChoiceState"
+    },
+    "CompensateSubStateMachineState": {
+      "Type": "CompensateSubMachine",
+      "Input": [
+        {
+          "test": "test compensate sub statemachine input param"
+        }
+      ]
+    },
+    // 测试loop状态
+    "TestLoopServiceState": {
+      "Type": "ServiceTask",
+      "ServiceName": "loopService",
+      "ServiceMethod": "loop",
+      "IsForUpdate": true,
+      "Status": {
+        "1 == 1": "UN"
+      },
+      "Input": [
+        {
+          "loopCounter": "$.[loopCounter]",
+          "loopElement": "$.[loopElement]"
+        }
+      ],
+      "Output": {
+        "loopResult": "$.#root"
+      },
+      "Loop": {
+        "Parallel": 8,
+        "Collection": "$.[test_loop_collection]"
+      }
+    },
+    "TestCompensateExecuteState": {
+      "Type": "ServiceTask",
+      "ServiceName": "compensateService",
+      "ServiceMethod": "execute",
+      "Next": "TestCompensateChoiceState",
+      "CompensateState": "CompensateExecuteState",
+      "Output": {
+        "result": "$.#root"
+      }
+    },
+    "TestCompensateChoiceState": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Expression": "#root[result] == true",
+          "Next": "SucceedState"
+        },
+        {
+          "Expression": "#root[result] == false",
+          "Next": "CompensationTriggerState"
+        }
+      ]
+    },
+    "CompensateExecuteState": {
+      "Type": "ServiceTask",
+      "ServiceName": "compensateService",
+      "ServiceMethod": "compensate"
+    }
+  }
+}

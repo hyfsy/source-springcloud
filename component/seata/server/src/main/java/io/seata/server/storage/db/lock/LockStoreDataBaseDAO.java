@@ -103,11 +103,14 @@ public class LockStoreDataBaseDAO implements LockStore {
         ResultSet rs = null;
         Set<String> dbExistedRowKeys = new HashSet<>();
         boolean originalAutoCommit = true;
+        // 主键去重
         if (lockDOs.size() > 1) {
             lockDOs = lockDOs.stream().filter(LambdaUtils.distinctByKey(LockDO::getRowKey)).collect(Collectors.toList());
         }
         try {
+            // 注意，这边拿的是原生的connection对象
             conn = lockStoreDataSource.getConnection();
+            // 手动提交
             if (originalAutoCommit = conn.getAutoCommit()) {
                 conn.setAutoCommit(false);
             }
@@ -118,6 +121,7 @@ public class LockStoreDataBaseDAO implements LockStore {
             }
             boolean canLock = true;
             //query
+            // 查询当前要加的行锁是否已存在
             String checkLockSQL = LockStoreSqlFactory.getLogStoreSql(dbType).getCheckLockableSql(lockTable, sj.toString());
             ps = conn.prepareStatement(checkLockSQL);
             for (int i = 0; i < lockDOs.size(); i++) {
@@ -127,6 +131,7 @@ public class LockStoreDataBaseDAO implements LockStore {
             String currentXID = lockDOs.get(0).getXid();
             while (rs.next()) {
                 String dbXID = rs.getString(ServerTableColumnsName.LOCK_TABLE_XID);
+                // 其他事务将该行锁定，则当前分支事务不能加锁
                 if (!StringUtils.equals(dbXID, currentXID)) {
                     if (LOGGER.isInfoEnabled()) {
                         String dbPk = rs.getString(ServerTableColumnsName.LOCK_TABLE_PK);
@@ -138,13 +143,16 @@ public class LockStoreDataBaseDAO implements LockStore {
                     canLock &= false;
                     break;
                 }
+                // 当前事务已存在的行锁
                 dbExistedRowKeys.add(rs.getString(ServerTableColumnsName.LOCK_TABLE_ROW_KEY));
             }
 
             if (!canLock) {
-                conn.rollback();
+                conn.rollback(); // 普通的回滚，感觉没啥用
                 return false;
             }
+
+            // 过滤掉已有的行锁，不让底下重新加锁
             List<LockDO> unrepeatedLockDOs = null;
             if (CollectionUtils.isNotEmpty(dbExistedRowKeys)) {
                 unrepeatedLockDOs = lockDOs.stream().filter(lockDO -> !dbExistedRowKeys.contains(lockDO.getRowKey()))
@@ -152,11 +160,14 @@ public class LockStoreDataBaseDAO implements LockStore {
             } else {
                 unrepeatedLockDOs = lockDOs;
             }
+
+            // 为空，直接返回，rollback感觉没啥用
             if (CollectionUtils.isEmpty(unrepeatedLockDOs)) {
                 conn.rollback();
                 return true;
             }
             //lock
+            // 一个就加一个，sql语句也只有一个
             if (unrepeatedLockDOs.size() == 1) {
                 LockDO lockDO = unrepeatedLockDOs.get(0);
                 if (!doAcquireLock(conn, lockDO)) {
@@ -166,7 +177,9 @@ public class LockStoreDataBaseDAO implements LockStore {
                     conn.rollback();
                     return false;
                 }
-            } else {
+            }
+            // 一条sql加多个行锁
+            else {
                 if (!doAcquireLocks(conn, unrepeatedLockDOs)) {
                     if (LOGGER.isInfoEnabled()) {
                         LOGGER.info("Global lock batch acquire failed, xid {} branchId {} pks {}", unrepeatedLockDOs.get(0).getXid(),
@@ -367,7 +380,7 @@ public class LockStoreDataBaseDAO implements LockStore {
                 sj.add("?");
             }
 
-            //query
+            //query rowKey, convert时自动生成的
             String checkLockSQL = LockStoreSqlFactory.getLogStoreSql(dbType).getCheckLockableSql(lockTable, sj.toString());
             ps = conn.prepareStatement(checkLockSQL);
             for (int i = 0; i < lockDOs.size(); i++) {
@@ -376,6 +389,7 @@ public class LockStoreDataBaseDAO implements LockStore {
             rs = ps.executeQuery();
             while (rs.next()) {
                 String xid = rs.getString("xid");
+                // 资源被其他事物锁定，则当前不能继续锁定
                 if (!StringUtils.equals(xid, lockDOs.get(0).getXid())) {
                     return false;
                 }

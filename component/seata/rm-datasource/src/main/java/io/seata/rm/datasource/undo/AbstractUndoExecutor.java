@@ -118,8 +118,10 @@ public abstract class AbstractUndoExecutor {
             return;
         }
         try {
+            // undo的sql语句
             String undoSQL = buildUndoSQL();
             PreparedStatement undoPST = conn.prepareStatement(undoSQL);
+            // 回滚的数据
             TableRecords undoRows = getUndoRows();
             for (Row undoRow : undoRows.getRows()) {
                 ArrayList<Field> undoValues = new ArrayList<>();
@@ -130,8 +132,10 @@ public abstract class AbstractUndoExecutor {
                     }
                 }
 
+                // pst设置数据
                 undoPrepare(undoPST, undoValues, pkValueList);
 
+                // 执行回滚sql
                 undoPST.executeUpdate();
             }
 

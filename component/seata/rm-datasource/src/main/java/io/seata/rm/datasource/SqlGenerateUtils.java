@@ -54,6 +54,7 @@ public class SqlGenerateUtils {
      */
     public static String buildWhereConditionByPKs(List<String> pkNameList, int rowSize, String dbType, int maxInSize)
         throws SQLException {
+        // where (id, name) in ((?), (?)) or (id, name) in ((?), (?))
         StringBuilder whereStr = new StringBuilder();
         //we must consider the situation of composite primary key
         int batchSize = rowSize % maxInSize == 0 ? rowSize / maxInSize : (rowSize / maxInSize) + 1;

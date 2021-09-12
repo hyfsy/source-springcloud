@@ -41,6 +41,8 @@ import static io.seata.spring.boot.autoconfigure.StarterConstants.SPECIAL_KEY_GR
 import static io.seata.spring.boot.autoconfigure.StarterConstants.SPECIAL_KEY_VGROUP_MAPPING;
 
 /**
+ * 通过xxxProperties获取配置，从容器中获取对象后反射获取field
+ *
  * @author xingfudeshi@gmail.com
  */
 public class SpringBootConfigurationProvider implements ExtConfigurationProvider {
@@ -92,11 +94,13 @@ public class SpringBootConfigurationProvider implements ExtConfigurationProvider
     private Object get(String dataId) throws IllegalAccessException, InstantiationException {
         String propertyPrefix = getPropertyPrefix(dataId);
         String propertySuffix = getPropertySuffix(dataId);
+        // 通过前缀获取对应的属性配置类
         ApplicationContext applicationContext = (ApplicationContext) ObjectHolder.INSTANCE.getObject(OBJECT_KEY_SPRING_APPLICATION_CONTEXT);
         Class<?> propertyClass = PROPERTY_BEAN_MAP.get(propertyPrefix);
         Object valueObject = null;
         if (propertyClass != null) {
             try {
+                // 配置类中获取字段
                 Object propertyBean = applicationContext.getBean(propertyClass);
                 valueObject = getFieldValue(propertyBean, propertySuffix, dataId);
             } catch (NoSuchBeanDefinitionException ignore) {
@@ -105,6 +109,7 @@ public class SpringBootConfigurationProvider implements ExtConfigurationProvider
         } else {
             throw new ShouldNeverHappenException("PropertyClass for prefix: [" + propertyPrefix + "] should not be null.");
         }
+        // 父类中查找配置
         if (valueObject == null) {
             valueObject = getFieldValue(propertyClass.newInstance(), propertySuffix, dataId);
         }

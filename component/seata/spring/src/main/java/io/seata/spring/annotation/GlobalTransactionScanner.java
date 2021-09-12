@@ -191,12 +191,12 @@ public class GlobalTransactionScanner extends AbstractAutoProxyCreator
         if (StringUtils.isNullOrEmpty(applicationId) || StringUtils.isNullOrEmpty(txServiceGroup)) {
             throw new IllegalArgumentException(String.format("applicationId: %s, txServiceGroup: %s", applicationId, txServiceGroup));
         }
-        //init TM
+        //init TM client (channel)
         TMClient.init(applicationId, txServiceGroup, accessKey, secretKey);
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Transaction Manager Client is initialized. applicationId[{}] txServiceGroup[{}]", applicationId, txServiceGroup);
         }
-        //init RM
+        //init RM client (channel)
         RMClient.init(applicationId, txServiceGroup);
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Resource Manager is initialized. applicationId[{}] txServiceGroup[{}]", applicationId, txServiceGroup);
@@ -252,15 +252,21 @@ public class GlobalTransactionScanner extends AbstractAutoProxyCreator
                     interceptor = new TccActionInterceptor(TCCBeanParserUtils.getRemotingDesc(beanName));
                     ConfigurationCache.addConfigListener(ConfigurationKeys.DISABLE_GLOBAL_TRANSACTION,
                         (ConfigurationChangeListener)interceptor);
-                } else {
+                }
+                // 非tcc的事务
+                else {
+                    // 类
                     Class<?> serviceInterface = SpringProxyUtils.findTargetClass(bean);
+                    // 代理接口
                     Class<?>[] interfacesIfJdk = SpringProxyUtils.findInterfaces(bean);
 
+                    // 校验类上存在 GlobalTransactional 或方法和类上存在 GlobalTransactional/GlobalLock
                     if (!existsAnnotation(new Class[]{serviceInterface})
                         && !existsAnnotation(interfacesIfJdk)) {
                         return bean;
                     }
 
+                    // 初始化拦截器
                     if (globalTransactionalInterceptor == null) {
                         globalTransactionalInterceptor = new GlobalTransactionalInterceptor(failureHandlerHook);
                         ConfigurationCache.addConfigListener(
@@ -271,9 +277,12 @@ public class GlobalTransactionScanner extends AbstractAutoProxyCreator
                 }
 
                 LOGGER.info("Bean[{}] with name [{}] would use interceptor [{}]", bean.getClass().getName(), beanName, interceptor.getClass().getName());
+                // 非代理过的对象，直接通过正常的流程生成代理，内部会调用getAdvicesAndAdvisorsForBean
                 if (!AopUtils.isAopProxy(bean)) {
                     bean = super.wrapIfNecessary(bean, beanName, cacheKey);
-                } else {
+                }
+                // 代理对象，将当前拦截器包装为顾问重新设置下
+                else {
                     AdvisedSupport advised = SpringProxyUtils.getAdvisedSupport(bean);
                     Advisor[] advisor = buildAdvisors(beanName, getAdvicesAndAdvisorsForBean(null, null, null));
                     for (Advisor avr : advisor) {
@@ -327,6 +336,7 @@ public class GlobalTransactionScanner extends AbstractAutoProxyCreator
 
     @Override
     public void afterPropertiesSet() {
+        // 定时检查启用配置
         if (disableGlobalTransaction) {
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info("Global transaction is disabled.");
@@ -346,6 +356,7 @@ public class GlobalTransactionScanner extends AbstractAutoProxyCreator
         this.setBeanFactory(applicationContext);
     }
 
+    // 配置改变，重新初始化客户端
     @Override
     public void onChangeEvent(ConfigurationChangeEvent event) {
         if (ConfigurationKeys.DISABLE_GLOBAL_TRANSACTION.equals(event.getDataId())) {

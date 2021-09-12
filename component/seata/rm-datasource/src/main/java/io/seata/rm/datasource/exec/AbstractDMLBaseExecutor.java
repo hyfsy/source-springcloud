@@ -78,9 +78,12 @@ public abstract class AbstractDMLBaseExecutor<T, S extends Statement> extends Ba
     @Override
     public T doExecute(Object... args) throws Throwable {
         AbstractConnectionProxy connectionProxy = statementProxy.getConnectionProxy();
+        // 自动提交，向服务端注册当前事务分支
         if (connectionProxy.getAutoCommit()) {
             return executeAutoCommitTrue(args);
-        } else {
+        }
+        // 前置镜像、后置镜像、业务执行，不自动提交
+        else {
             return executeAutoCommitFalse(args);
         }
     }
@@ -136,6 +139,7 @@ public abstract class AbstractDMLBaseExecutor<T, S extends Statement> extends Ba
         ConnectionProxy connectionProxy = statementProxy.getConnectionProxy();
         try {
             connectionProxy.changeAutoCommit();
+            // 这边处理提交时的锁冲突重试机制
             return new LockRetryPolicy(connectionProxy).execute(() -> {
                 T result = executeAutoCommitFalse(args);
                 connectionProxy.commit();
@@ -180,6 +184,7 @@ public abstract class AbstractDMLBaseExecutor<T, S extends Statement> extends Ba
 
         @Override
         public <T> T execute(Callable<T> callable) throws Exception {
+            // 默认true，走回滚，这边逻辑有点混乱，父类是相反的
             if (LOCK_RETRY_POLICY_BRANCH_ROLLBACK_ON_CONFLICT) {
                 return doRetryOnLockConflict(callable);
             } else {

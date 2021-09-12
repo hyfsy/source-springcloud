@@ -28,8 +28,11 @@ import io.seata.saga.statelang.domain.TaskState;
  */
 public abstract class AbstractTaskState extends BaseState implements TaskState {
 
+    // 如果需要补偿时，当前状态对应的补偿状态
     private String compensateState;
+    // 补偿的状态，为了补偿的状态标记
     private boolean isForCompensation;
+    // 状态日志是否更新
     private boolean isForUpdate;
     private List<Retry> retry;
     private List<ExceptionMatch> catches;
@@ -38,6 +41,7 @@ public abstract class AbstractTaskState extends BaseState implements TaskState {
     private Map<String, String> status;//Map<String/* expression */, String /* status */>
     private List<Object> inputExpressions;
     private Map<String, Object> outputExpressions;
+    // 状态日志是否持久化
     private boolean isPersist = true;
     private Boolean retryPersistModeUpdate;
     private Boolean compensatePersistModeUpdate;

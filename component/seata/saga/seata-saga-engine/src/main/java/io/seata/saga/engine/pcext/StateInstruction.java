@@ -39,6 +39,8 @@ public class StateInstruction implements Instruction {
     private boolean end;
 
     /**
+     * 临时状态，专门用于路由，使用一次后移除
+     *
      * Temporary state node for running temporary nodes in the state machine
      */
     private State temporaryState;
@@ -53,8 +55,9 @@ public class StateInstruction implements Instruction {
 
     public State getState(ProcessContext context) {
 
+        // 临时状态
         if (getTemporaryState() != null) {
-
+            // loop/subCompensate/compensateTrigger
             return temporaryState;
         }
 
@@ -66,6 +69,7 @@ public class StateInstruction implements Instruction {
             throw new EngineExecutionException("StateMachineName is required", FrameworkErrorCode.ParameterRequired);
         }
 
+        // 查询状态机实例，获取当前状态名称对应的状态
         StateMachineConfig stateMachineConfig = (StateMachineConfig)context.getVariable(
             DomainConstants.VAR_NAME_STATEMACHINE_CONFIG);
         StateMachine stateMachine = stateMachineConfig.getStateMachineRepository().getStateMachine(stateMachineName,
@@ -75,12 +79,14 @@ public class StateInstruction implements Instruction {
                 FrameworkErrorCode.ObjectNotExists);
         }
 
+        // 初始化状态名称
         if (StringUtils.isEmpty(stateName)) {
 
             stateName = stateMachine.getStartState();
             setStateName(stateName);
         }
 
+        // 获取对应的状态
         State state = stateMachine.getStates().get(stateName);
         if (state == null) {
             throw new EngineExecutionException("State[" + stateName + "] is not exist",

@@ -18,6 +18,8 @@ package io.seata.saga.statelang.domain;
 import java.util.Date;
 
 /**
+ * 状态的数据库实体
+ *
  * State execution instance
  *
  * @author lorne.cl

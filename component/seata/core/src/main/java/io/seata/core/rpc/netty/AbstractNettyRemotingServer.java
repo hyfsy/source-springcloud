@@ -95,6 +95,7 @@ public abstract class AbstractNettyRemotingServer extends AbstractNettyRemoting 
         if (!(msg instanceof HeartbeatMessage)) {
             clientChannel = ChannelManager.getSameClientChannel(channel);
         }
+        // 请求的参数重新放入响应中，与客户端保持一致
         if (clientChannel != null) {
             RpcMessage rpcMsg = buildResponseMessage(rpcMessage, msg, msg instanceof HeartbeatMessage
                 ? ProtocolConstants.MSGTYPE_HEARTBEAT_RESPONSE
@@ -201,6 +202,7 @@ public abstract class AbstractNettyRemotingServer extends AbstractNettyRemoting 
             super.channelInactive(ctx);
         }
 
+        // ctx close
         private void handleDisconnect(ChannelHandlerContext ctx) {
             final String ipAndPort = NetUtil.toStringAddress(ctx.channel().remoteAddress());
             RpcContext rpcContext = ChannelManager.getContextFromIdentified(ctx.channel());
@@ -231,6 +233,7 @@ public abstract class AbstractNettyRemotingServer extends AbstractNettyRemoting 
             if (LOGGER.isInfoEnabled()) {
                 LOGGER.info("channel exx:" + cause.getMessage() + ",channel:" + ctx.channel());
             }
+            // 异常处理，ctx close
             ChannelManager.releaseRpcContext(ctx.channel());
             super.exceptionCaught(ctx, cause);
         }
@@ -244,6 +247,7 @@ public abstract class AbstractNettyRemotingServer extends AbstractNettyRemoting 
          */
         @Override
         public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
+            // channel 空闲
             if (evt instanceof IdleStateEvent) {
                 debugLog("idle:" + evt);
                 IdleStateEvent idleStateEvent = (IdleStateEvent) evt;
@@ -251,8 +255,10 @@ public abstract class AbstractNettyRemotingServer extends AbstractNettyRemoting 
                     if (LOGGER.isInfoEnabled()) {
                         LOGGER.info("channel:" + ctx.channel() + " read idle.");
                     }
+                    // 取消连接绑定
                     handleDisconnect(ctx);
                     try {
+                        // ctx关闭
                         closeChannelHandlerContext(ctx);
                     } catch (Exception e) {
                         LOGGER.error(e.getMessage());
@@ -261,6 +267,7 @@ public abstract class AbstractNettyRemotingServer extends AbstractNettyRemoting 
             }
         }
 
+        // 连接关闭
         @Override
         public void close(ChannelHandlerContext ctx, ChannelPromise future) throws Exception {
             if (LOGGER.isInfoEnabled()) {

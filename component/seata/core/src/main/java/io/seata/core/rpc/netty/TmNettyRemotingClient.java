@@ -191,6 +191,7 @@ public final class TmNettyRemotingClient extends AbstractNettyRemotingClient {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("register TM success. client version:{}, server version:{},channel:{}", registerTMRequest.getVersion(), registerTMResponse.getVersion(), channel);
         }
+        // TM直接入缓存
         getClientChannelManager().registerChannel(serverAddress, channel);
     }
 
@@ -211,9 +212,11 @@ public final class TmNettyRemotingClient extends AbstractNettyRemotingClient {
         instance = null;
     }
 
+    // 重要的 pool key
     @Override
     protected Function<String, NettyPoolKey> getPoolKeyFunction() {
         return severAddress -> {
+            // 请求用来向TC注册
             RegisterTMRequest message = new RegisterTMRequest(applicationId, transactionServiceGroup, getExtraData());
             return new NettyPoolKey(NettyPoolKey.TransactionRole.TMROLE, severAddress, message);
         };
@@ -235,6 +238,7 @@ public final class TmNettyRemotingClient extends AbstractNettyRemotingClient {
         super.registerProcessor(MessageType.TYPE_HEARTBEAT_MSG, clientHeartbeatProcessor, null);
     }
 
+    // TM有额外信息
     private String getExtraData() {
         String ip = NetUtil.getLocalIp();
         String timestamp = String.valueOf(System.currentTimeMillis());

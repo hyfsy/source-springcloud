@@ -54,6 +54,7 @@ public class CompensationTriggerStateHandler implements StateHandler {
                 stateMachineInstance.getId());
         }
 
+        // 通过状态列表，获取需要补偿的状态（之前执行成功的）
         List<StateInstance> stateListToBeCompensated = CompensationHolder.findStateInstListToBeCompensated(context,
             stateInstanceList);
         if (CollectionUtils.isNotEmpty(stateListToBeCompensated)) {
@@ -73,15 +74,20 @@ public class CompensationTriggerStateHandler implements StateHandler {
             //If the forward status is not the two states, then the compensation operation should be initiated by
             // server recovery,
             // and the forward state should not be modified.
+            // 这种情况说明状态机还没有被恢复，此处需要初始化状态机的状态，标记回滚的未知情况
             if (stateMachineInstance.getStatus() == null || ExecutionStatus.RU.equals(
                 stateMachineInstance.getStatus())) {
                 stateMachineInstance.setStatus(ExecutionStatus.UN);
             }
             //Record the status of the state machine as "compensating", and the subsequent routing logic will route
             // to the compensation state
+            // process执行完毕，接下来由路由去到补偿状态
             stateMachineInstance.setCompensationStatus(ExecutionStatus.RU);
+            // 上下文添加补偿触发的状态
             context.setVariable(DomainConstants.VAR_NAME_CURRENT_COMPEN_TRIGGER_STATE, instruction.getState(context));
-        } else {
+        }
+        // 没有补偿状态的，直接结束状态机
+        else {
             EngineUtils.endStateMachine(context);
         }
     }

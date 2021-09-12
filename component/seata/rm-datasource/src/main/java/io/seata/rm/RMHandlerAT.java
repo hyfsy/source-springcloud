@@ -55,6 +55,7 @@ public class RMHandlerAT extends AbstractRMHandler {
             int deleteRows = 0;
             do {
                 try {
+                    // 删除当前计算出的创建时间之前的日志
                     deleteRows = UndoLogManagerFactory.getUndoLogManager(dataSourceProxy.getDbType())
                             .deleteUndoLogByLogCreated(logCreatedSave, LIMIT_ROWS, conn);
                     if (deleteRows > 0 && !conn.getAutoCommit()) {

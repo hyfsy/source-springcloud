@@ -104,11 +104,13 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
 
     @Override
     public T execute(Object... args) throws Throwable {
+        // ConnectContext 绑定 xid
         String xid = RootContext.getXID();
         if (xid != null) {
             statementProxy.getConnectionProxy().bind(xid);
         }
 
+        // 设置是否需要获取全局锁
         statementProxy.getConnectionProxy().setGlobalLockRequire(RootContext.requireGlobalLock());
         return doExecute(args);
     }
@@ -266,6 +268,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
      * @throws SQLException the sql exception
      */
     protected void prepareUndoLog(TableRecords beforeImage, TableRecords afterImage) throws SQLException {
+        // 都空的，直接返回
         if (beforeImage.getRows().isEmpty() && afterImage.getRows().isEmpty()) {
             return;
         }
@@ -276,12 +279,15 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
         }
         ConnectionProxy connectionProxy = statementProxy.getConnectionProxy();
 
+        // 通过影响的数据主键创建lockKey
         TableRecords lockKeyRecords = sqlRecognizer.getSQLType() == SQLType.DELETE ? beforeImage : afterImage;
         String lockKeys = buildLockKey(lockKeyRecords);
         if (null != lockKeys) {
             connectionProxy.appendLockKey(lockKeys);
 
+            // undoLog日志
             SQLUndoLog sqlUndoLog = buildUndoItem(beforeImage, afterImage);
+            // 放入context中
             connectionProxy.appendUndoLog(sqlUndoLog);
         }
     }
@@ -293,6 +299,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
      * @return the string as local key. the local key example(multi pk): "t_user:1_a,2_b"
      */
     protected String buildLockKey(TableRecords rowsIncludingPK) {
+        // tableName:pkValue1_pkValue2,anotherPkValue1_anotherPkValue2
         if (rowsIncludingPK.size() == 0) {
             return null;
         }
@@ -302,13 +309,13 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
         sb.append(":");
         int filedSequence = 0;
         List<Map<String, Field>> pksRows = rowsIncludingPK.pkRows();
-        for (Map<String, Field> rowMap : pksRows) {
+        for (Map<String, Field> rowMap : pksRows) { // 多主键
             int pkSplitIndex = 0;
             for (String pkName : getTableMeta().getPrimaryKeyOnlyName()) {
                 if (pkSplitIndex > 0) {
                     sb.append("_");
                 }
-                sb.append(rowMap.get(pkName).getValue());
+                sb.append(rowMap.get(pkName).getValue()); // field.value
                 pkSplitIndex++;
             }
             filedSequence++;
@@ -374,6 +381,7 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
      * @throws SQLException the sql exception
      */
     protected TableRecords buildTableRecords(Map<String, List<Object>> pkValuesMap) throws SQLException {
+        // SELECT * FROM t_order WHERE (id) in ( (?) )
         List<String> pkColumnNameList = getTableMeta().getPrimaryKeyOnlyName();
         StringBuilder sql = new StringBuilder()
             .append("SELECT * FROM ")

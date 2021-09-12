@@ -32,12 +32,17 @@ public class LoopContextHolder {
     private final AtomicInteger nrOfInstances = new AtomicInteger();
     private final AtomicInteger nrOfActiveInstances = new AtomicInteger();
     private final AtomicInteger nrOfCompletedInstances = new AtomicInteger();
+    // loop失败结束状态
     private volatile boolean failEnd = false;
+    // 条件满足状态，结束loop
     private volatile boolean completionConditionSatisfied = false;
+    // 计数栈
     private final Stack<Integer> loopCounterStack = new Stack<>();
+    // 失败的loop 计数栈
     private final Stack<Integer> forwardCounterStack = new Stack<>();
     private Collection collection;
 
+    // 从上下文中获取该Holder，没有就初始化一个
     public static LoopContextHolder getCurrent(ProcessContext context, boolean forceCreate) {
         LoopContextHolder loopContextHolder = (LoopContextHolder)context.getVariable(
             DomainConstants.VAR_NAME_CURRENT_LOOP_CONTEXT_HOLDER);

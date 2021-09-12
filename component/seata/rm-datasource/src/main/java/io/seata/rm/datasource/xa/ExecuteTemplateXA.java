@@ -38,6 +38,7 @@ public class ExecuteTemplateXA {
         boolean autoCommitStatus = connectionProxyXA.getAutoCommit();
         if (autoCommitStatus) {
             // XA Start
+            // 内部会注册分支
             connectionProxyXA.setAutoCommit(false);
         }
         try {

@@ -150,6 +150,7 @@ public class ConnectionProxy extends AbstractConnectionProxy {
     }
 
     private void recognizeLockKeyConflictException(TransactionException te, String lockKeys) throws SQLException {
+        // 可重试
         if (te.getCode() == TransactionExceptionCode.LockKeyConflict) {
             StringBuilder reasonBuilder = new StringBuilder("get global lock fail, xid:");
             reasonBuilder.append(context.getXid());
@@ -157,7 +158,9 @@ public class ConnectionProxy extends AbstractConnectionProxy {
                 reasonBuilder.append(", lockKeys:").append(lockKeys);
             }
             throw new LockConflictException(reasonBuilder.toString());
-        } else {
+        }
+        // 可回滚
+        else {
             throw new SQLException(te);
         }
 
@@ -184,16 +187,21 @@ public class ConnectionProxy extends AbstractConnectionProxy {
     @Override
     public void commit() throws SQLException {
         try {
+            // 内部不重试，直接调用commit不会走重试机制，see AbstractDMLBaseExecutor#executeAutoCommitTrue
             LOCK_RETRY_POLICY.execute(() -> {
                 doCommit();
                 return null;
             });
-        } catch (SQLException e) {
+        }
+        // 这边回滚
+        catch (SQLException e) {
             if (targetConnection != null && !getAutoCommit() && !getContext().isAutoCommitChanged()) {
                 rollback();
             }
             throw e;
-        } catch (Exception e) {
+        }
+        // 未知异常，包装下
+        catch (Exception e) {
             throw new SQLException(e);
         }
     }
@@ -246,19 +254,24 @@ public class ConnectionProxy extends AbstractConnectionProxy {
     }
 
     private void processGlobalTransactionCommit() throws SQLException {
+        // 向TC注册
         try {
             register();
         } catch (TransactionException e) {
+            // 转换异常为全局锁获取失败的异常，可重试
             recognizeLockKeyConflictException(e, context.buildLockKeys());
         }
         try {
+            // 添加 undo_log
             UndoLogManagerFactory.getUndoLogManager(this.getDbType()).flushUndoLogs(this);
+            // 本地事务提交
             targetConnection.commit();
         } catch (Throwable ex) {
             LOGGER.error("process connectionProxy commit error: {}", ex.getMessage(), ex);
             report(false);
             throw new SQLException(ex);
         }
+        // 报告分支事务一阶段提交成功，可选
         if (IS_REPORT_SUCCESS_ENABLE) {
             report(true);
         }
@@ -266,9 +279,11 @@ public class ConnectionProxy extends AbstractConnectionProxy {
     }
 
     private void register() throws TransactionException {
+        // 没有全局事务需要注册的东西
         if (!context.hasUndoLog() || !context.hasLockKey()) {
             return;
         }
+        // 请求TC注册当前分支事务
         Long branchId = DefaultResourceManager.get().branchRegister(BranchType.AT, getDataSourceProxy().getResourceId(),
             null, context.getXid(), null, context.buildLockKeys());
         context.setBranchId(branchId);
@@ -277,6 +292,7 @@ public class ConnectionProxy extends AbstractConnectionProxy {
     @Override
     public void rollback() throws SQLException {
         targetConnection.rollback();
+        // 向TC报告当前分支事务执行失败
         if (context.inGlobalTransaction() && context.isBranchRegistered()) {
             report(false);
         }

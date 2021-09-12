@@ -86,31 +86,49 @@ public class DefaultStateMachineConfig implements StateMachineConfig, Applicatio
     private static final int DEFAULT_TRANS_OPER_TIMEOUT     = 60000 * 30;
     private static final int DEFAULT_SERVICE_INVOKE_TIMEOUT = 60000 * 5;
 
+    // 分支事务超时
     private int transOperationTimeout = DEFAULT_TRANS_OPER_TIMEOUT;
+    // ServiceTask状态的服务调用超时
     private int serviceInvokeTimeout  = DEFAULT_SERVICE_INVOKE_TIMEOUT;
 
+    // 校验null的情况
     private StateLogRepository stateLogRepository;
+    // CRUD 状态、状态机的数据，内部也会与TC交互
     private StateLogStore stateLogStore;
+    // CRUD state-lang *.json处理过后的数据
     private StateLangStore stateLangStore;
+    // EL表达式创建
     private ExpressionFactoryManager expressionFactoryManager;
+    // EL表达式值计算
     private EvaluatorFactoryManager evaluatorFactoryManager;
+    // CRUD状态机资源，state-lang.json
     private StateMachineRepository stateMachineRepository;
+    // 决定状态机的最终状态
     private StatusDecisionStrategy statusDecisionStrategy;
     private SeqGenerator seqGenerator;
 
+    // 状态事件发布器-同步
     private ProcessCtrlEventPublisher syncProcessCtrlEventPublisher;
+    // 状态事件发布器-异步
     private ProcessCtrlEventPublisher asyncProcessCtrlEventPublisher;
     private ApplicationContext applicationContext;
+    // 异步使用的线程池
     private ThreadPoolExecutor threadPoolExecutor;
     private boolean enableAsync;
+    // ServiceTask调用服务对象的包装
     private ServiceInvokerManager serviceInvokerManager;
 
+    // state-lang脚本资源，支持热刷新，需要自己编写代码
     private Resource[] resources = new Resource[0];
     private String charset = "UTF-8";
     private String defaultTenantId = "000001";
+    // ScriptTask使用的JDK脚本引擎
     private ScriptEngineManager scriptEngineManager;
+    // 对象序列化方式
     private String sagaJsonParser = DEFAULT_SAGA_JSON_PARSER;
+    // 重试的情况下的持久化的日志是否更新，还是新增一条
     private boolean sagaRetryPersistModeUpdate = DEFAULT_CLIENT_SAGA_RETRY_PERSIST_MODE_UPDATE;
+    // 补偿的情况下的持久化的日志是否更新，还是新增一条
     private boolean sagaCompensatePersistModeUpdate = DEFAULT_CLIENT_SAGA_COMPENSATE_PERSIST_MODE_UPDATE;
 
     protected void init() throws Exception {
@@ -219,6 +237,8 @@ public class DefaultStateMachineConfig implements StateMachineConfig, Applicatio
     }
 
     protected ProcessControllerImpl createProcessorController(ProcessCtrlEventPublisher eventPublisher) throws Exception {
+
+        // 创建多个路由器和处理器，用BusinessProcessor包装，放入ProcessController中
 
         StateMachineProcessRouter stateMachineProcessRouter = new StateMachineProcessRouter();
         stateMachineProcessRouter.initDefaultStateRouters();

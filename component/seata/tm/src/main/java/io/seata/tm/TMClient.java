@@ -43,6 +43,7 @@ public class TMClient {
      * @param secretKey               the secret key
      */
     public static void init(String applicationId, String transactionServiceGroup, String accessKey, String secretKey) {
+        // TM客户端
         TmNettyRemotingClient tmNettyRemotingClient = TmNettyRemotingClient.getInstance(applicationId, transactionServiceGroup, accessKey, secretKey);
         tmNettyRemotingClient.init();
     }

@@ -34,11 +34,13 @@ import java.util.List;
 @ConditionalOnWebApplication
 public class HttpAutoConfiguration extends WebMvcConfigurerAdapter {
 
+    // xid传播
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new TransactionPropagationInterceptor());
     }
 
+    // 异常清除xid
     @Override
     public void extendHandlerExceptionResolvers(List<HandlerExceptionResolver> exceptionResolvers) {
         exceptionResolvers.add(new HttpHandlerExceptionResolver());

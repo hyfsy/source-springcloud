@@ -49,6 +49,7 @@ public class ChoiceStateHandler implements StateHandler {
         StateInstruction instruction = context.getInstruction(StateInstruction.class);
         ChoiceStateImpl choiceState = (ChoiceStateImpl)instruction.getState(context);
 
+        // 初始化choice表达式
         Map<Object, String> choiceEvaluators = choiceState.getChoiceEvaluators();
         if (choiceEvaluators == null) {
             synchronized (choiceState) {
@@ -70,6 +71,7 @@ public class ChoiceStateHandler implements StateHandler {
             }
         }
 
+        // 校验表达式，通过引擎的 context 参数校验
         Evaluator evaluator;
         for (Map.Entry<Object, String> entry : choiceEvaluators.entrySet()) {
             evaluator = (Evaluator)entry.getKey();
@@ -79,6 +81,7 @@ public class ChoiceStateHandler implements StateHandler {
             }
         }
 
+        // 没有默认选择，直接抛异常
         if (StringUtils.isEmpty(choiceState.getDefault())) {
 
             StateMachineInstance stateMachineInstance = (StateMachineInstance)context.getVariable(
@@ -91,6 +94,7 @@ public class ChoiceStateHandler implements StateHandler {
             throw exception;
         }
 
+        // 设置变量，供route使用
         context.setVariable(DomainConstants.VAR_NAME_CURRENT_CHOICE, choiceState.getDefault());
     }
 

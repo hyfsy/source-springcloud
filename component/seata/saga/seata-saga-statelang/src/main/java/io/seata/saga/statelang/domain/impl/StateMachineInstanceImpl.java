@@ -55,6 +55,8 @@ public class StateMachineInstanceImpl implements StateMachineInstance {
     private Map<String, Object> context;
 
     private StateMachine stateMachine;
+
+    // ServiceTask才还会放入
     private List<StateInstance> stateList = Collections.synchronizedList(new ArrayList<>());
     private Map<String, StateInstance> stateMap = new ConcurrentHashMap<>();
 

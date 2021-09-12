@@ -73,9 +73,12 @@ public class ServerOnRequestProcessor implements RemotingProcessor {
 
     @Override
     public void process(ChannelHandlerContext ctx, RpcMessage rpcMessage) throws Exception {
+        // channel存在则处理
         if (ChannelManager.isRegistered(ctx.channel())) {
             onRequestMessage(ctx, rpcMessage);
-        } else {
+        }
+        // 关闭该通道
+        else {
             try {
                 if (LOGGER.isInfoEnabled()) {
                     LOGGER.info("closeChannelHandlerContext channel:" + ctx.channel());
@@ -94,6 +97,8 @@ public class ServerOnRequestProcessor implements RemotingProcessor {
     private void onRequestMessage(ChannelHandlerContext ctx, RpcMessage rpcMessage) {
         Object message = rpcMessage.getBody();
         RpcContext rpcContext = ChannelManager.getContextFromIdentified(ctx.channel());
+
+        // 请求响应日志会扔进日志处理线程中
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("server received:{},clientIp:{},vgroup:{}", message,
                 NetUtil.toIpAddress(ctx.channel().remoteAddress()), rpcContext.getTransactionServiceGroup());
@@ -109,6 +114,7 @@ public class ServerOnRequestProcessor implements RemotingProcessor {
         if (!(message instanceof AbstractMessage)) {
             return;
         }
+        // 批处理
         if (message instanceof MergedWarpMessage) {
             AbstractResultMessage[] results = new AbstractResultMessage[((MergedWarpMessage) message).msgs.size()];
             for (int i = 0; i < results.length; i++) {
@@ -118,7 +124,9 @@ public class ServerOnRequestProcessor implements RemotingProcessor {
             MergeResultMessage resultMessage = new MergeResultMessage();
             resultMessage.setMsgs(results);
             remotingServer.sendAsyncResponse(rpcMessage, ctx.channel(), resultMessage);
-        } else {
+        }
+        // 单个请求处理
+        else {
             // the single send request message
             final AbstractMessage msg = (AbstractMessage) message;
             AbstractResultMessage result = transactionMessageHandler.onRequest(msg, rpcContext);

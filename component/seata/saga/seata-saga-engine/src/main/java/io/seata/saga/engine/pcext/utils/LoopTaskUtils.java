@@ -68,6 +68,7 @@ public class LoopTaskUtils {
      * @return currentState loop config if satisfied, else {@literal null}
      */
     public static Loop getLoopConfig(ProcessContext context, State currentState) {
+        // 固定的三种状态才可以loop
         if (matchLoop(currentState)) {
             AbstractTaskState taskState = (AbstractTaskState)currentState;
 
@@ -78,11 +79,16 @@ public class LoopTaskUtils {
 
             if (null != taskState.getLoop()) {
                 Loop loop = taskState.getLoop();
+
+                // 计算出集合属性，放入Holder中
                 String collectionName = loop.getCollection();
                 if (StringUtils.isNotBlank(collectionName)) {
+                    // 计算出表达式，这边每次获取都会计算下
                     Object expression = ParameterUtils.createValueExpression(
                         stateMachineConfig.getExpressionFactoryManager(), collectionName);
+                    // 获取集合结果
                     Object collection = ParameterUtils.getValue(expression, stateMachineInstance.getContext(), null);
+                    // 放入 ProcessContext 中
                     if (collection instanceof Collection && ((Collection)collection).size() > 0) {
                         LoopContextHolder.getCurrent(context, true).setCollection((Collection)collection);
                         return loop;
@@ -101,6 +107,7 @@ public class LoopTaskUtils {
      * @return
      */
     public static boolean matchLoop(State state) {
+        // 仅三种状态支持loop
         return state != null && (DomainConstants.STATE_TYPE_SERVICE_TASK.equals(state.getType())
             || DomainConstants.STATE_TYPE_SCRIPT_TASK.equals(state.getType())
             || DomainConstants.STATE_TYPE_SUB_STATE_MACHINE.equals(state.getType()));
@@ -112,10 +119,13 @@ public class LoopTaskUtils {
      * @param context
      */
     public static void createLoopCounterContext(ProcessContext context) {
+        // 创建上下文
         LoopContextHolder contextHolder = LoopContextHolder.getCurrent(context, true);
         Collection collection = contextHolder.getCollection();
+        // 设置最大loop数
         contextHolder.getNrOfInstances().set(collection.size());
 
+        // 设置计数栈，注意这里是从后向前
         for (int i = collection.size() - 1; i >= 0; i--) {
             contextHolder.getLoopCounterStack().push(i);
         }
@@ -134,6 +144,7 @@ public class LoopTaskUtils {
             DomainConstants.VAR_NAME_STATEMACHINE_INST);
 
         List<StateInstance> actList = stateMachineInstance.getStateList();
+        // 获取当前loop的所有执行过的
         List<StateInstance> forwardStateList = actList.stream().filter(
             e -> forwardStateName.equals(EngineUtils.getOriginStateName(e))).collect(Collectors.toList());
 
@@ -148,18 +159,22 @@ public class LoopTaskUtils {
         LinkedList<Integer> failEndList = new LinkedList<>();
         for (StateInstance stateInstance : forwardStateList) {
             if (!stateInstance.isIgnoreStatus()) {
+                // 成功的
                 if (ExecutionStatus.SU.equals(stateInstance.getStatus())) {
                     executedNumber += 1;
-                } else {
+                }
+                // 失败的要重新添加
+                else {
                     stateInstance.setIgnoreStatus(true);
                     failEndList.addFirst(reloadLoopCounter(stateInstance.getName()));
                 }
+                // 移掉forward里存在的
                 list.remove(Integer.valueOf(reloadLoopCounter(stateInstance.getName())));
             }
         }
 
-        loopContextHolder.getLoopCounterStack().addAll(list);
-        loopContextHolder.getForwardCounterStack().addAll(failEndList);
+        loopContextHolder.getLoopCounterStack().addAll(list); // 2、3
+        loopContextHolder.getForwardCounterStack().addAll(failEndList); // 0、1
         loopContextHolder.getNrOfInstances().set(collection.size());
         loopContextHolder.getNrOfCompletedInstances().set(executedNumber);
     }
@@ -182,11 +197,13 @@ public class LoopTaskUtils {
     public static StateInstance findOutLastNeedForwardStateInstance(ProcessContext context) {
         StateMachineInstance stateMachineInstance = (StateMachineInstance)context.getVariable(
             DomainConstants.VAR_NAME_STATEMACHINE_INST);
+        // 当前正在运行的状态
         StateInstance lastForwardState = (StateInstance)context.getVariable(DomainConstants.VAR_NAME_STATE_INST);
 
         List<StateInstance> actList = stateMachineInstance.getStateList();
         for (int i = actList.size() - 1; i >= 0; i--) {
             StateInstance stateInstance = actList.get(i);
+            // 从后向前，查找最后一个没成功的
             if (EngineUtils.getOriginStateName(stateInstance).equals(EngineUtils.getOriginStateName(lastForwardState))
                 && !ExecutionStatus.SU.equals(stateInstance.getStatus())) {
                 return stateInstance;
@@ -219,10 +236,12 @@ public class LoopTaskUtils {
         AbstractTaskState currentState = (AbstractTaskState)instruction.getState(context);
         LoopContextHolder currentLoopContext = LoopContextHolder.getCurrent(context, true);
 
+        // 已经设置过完成了
         if (currentLoopContext.isCompletionConditionSatisfied()) {
             return true;
         }
 
+        // 放入参数上下文中
         int nrOfInstances = currentLoopContext.getNrOfInstances().get();
         int nrOfActiveInstances = currentLoopContext.getNrOfActiveInstances().get();
         int nrOfCompletedInstances = currentLoopContext.getNrOfCompletedInstances().get();
@@ -238,6 +257,7 @@ public class LoopTaskUtils {
                     stateMachineContext.put(DomainConstants.NUMBER_OF_COMPLETED_INSTANCES,
                         (double)nrOfCompletedInstances);
 
+                    // 校验达到最大计数 | 给定条件匹配
                     if (nrOfCompletedInstances >= nrOfInstances || getEvaluator(context,
                         currentState.getLoop().getCompletionCondition()).evaluate(stateMachineContext)) {
                         currentLoopContext.setCompletionConditionSatisfied(true);
@@ -304,6 +324,7 @@ public class LoopTaskUtils {
             StateMachineConfig stateMachineConfig = (StateMachineConfig)context.getVariable(
                 DomainConstants.VAR_NAME_STATEMACHINE_CONFIG);
 
+            // 获取循环状态后的所有结果
             List<Map<String, Object>> subContextVariables = new ArrayList<>();
             for (ProcessContext subProcessContext : subContextList) {
                 StateInstance stateInstance = (StateInstance)subProcessContext.getVariable(DomainConstants.VAR_NAME_STATE_INST);
@@ -335,18 +356,22 @@ public class LoopTaskUtils {
         StateInstance lastRetriedStateInstance = LoopTaskUtils.findOutLastRetriedStateInstance(
             stateMachineInstance, LoopTaskUtils.generateLoopStateName(context, instruction.getStateName()));
 
+        // 子状态机未成功的补偿状态
         if (null != lastRetriedStateInstance && DomainConstants.STATE_TYPE_SUB_STATE_MACHINE.equals(
             lastRetriedStateInstance.getType()) && !ExecutionStatus.SU.equals(
             lastRetriedStateInstance.getCompensationStatus())) {
 
+            // 获取最初的补偿状态
             while (StringUtils.isNotBlank(lastRetriedStateInstance.getStateIdRetriedFor())) {
                 lastRetriedStateInstance = stateMachineConfig.getStateLogStore().getStateInstance(
                     lastRetriedStateInstance.getStateIdRetriedFor(), lastRetriedStateInstance.getMachineInstanceId());
             }
 
+            // 获取所有的子状态机
             List<StateMachineInstance> subInst = stateMachineConfig.getStateLogStore()
                 .queryStateMachineInstanceByParentId(EngineUtils.generateParentId(lastRetriedStateInstance));
             if (CollectionUtils.isNotEmpty(subInst)) {
+                // 拿第一个就ok了
                 if (ExecutionStatus.SU.equals(subInst.get(0).getCompensationStatus())) {
                     return false;
                 }
@@ -377,11 +402,13 @@ public class LoopTaskUtils {
         if (CollectionUtils.isNotEmpty(subContextList)) {
 
             for (ProcessContext processContext : subContextList) {
+                // 只接受 Exception 表达式匹配的Next
                 String next = (String)processContext.getVariable(DomainConstants.VAR_NAME_CURRENT_EXCEPTION_ROUTE);
                 if (StringUtils.isNotBlank(next)) {
 
                     // compensate must be execute
                     State state = stateMachine.getState(next);
+                    // 补偿状态优先
                     if (DomainConstants.STATE_TYPE_COMPENSATION_TRIGGER.equals(state.getType())) {
                         route = next;
                         break;

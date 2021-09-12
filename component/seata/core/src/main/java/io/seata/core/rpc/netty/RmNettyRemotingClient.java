@@ -157,9 +157,11 @@ public final class RmNettyRemotingClient extends AbstractNettyRemotingClient {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("register RM success. client version:{}, server version:{},channel:{}", registerRMRequest.getVersion(), registerRMResponse.getVersion(), channel);
         }
+        // 缓存 channels 中添加该channel
         getClientChannelManager().registerChannel(serverAddress, channel);
         String dbKey = getMergedResourceKeys();
         if (registerRMRequest.getResourceIds() != null) {
+            // resourceId 不一致，重新注册
             if (!registerRMRequest.getResourceIds().equals(dbKey)) {
                 sendRegisterMessage(serverAddress, channel, dbKey);
             }
@@ -190,10 +192,12 @@ public final class RmNettyRemotingClient extends AbstractNettyRemotingClient {
             return;
         }
 
+        // 没有通道，初始化中，连接获取下通道就结束
         if (getClientChannelManager().getChannels().isEmpty()) {
             getClientChannelManager().reconnect(transactionServiceGroup);
             return;
         }
+        // 感觉不会走到这里
         synchronized (getClientChannelManager().getChannels()) {
             for (Map.Entry<String, Channel> entry : getClientChannelManager().getChannels().entrySet()) {
                 String serverAddress = entry.getKey();
@@ -223,6 +227,7 @@ public final class RmNettyRemotingClient extends AbstractNettyRemotingClient {
         }
     }
 
+    // resourceId,resourceId...
     public String getMergedResourceKeys() {
         Map<String, Resource> managedResources = resourceManager.getManagedResources();
         Set<String> resourceIds = managedResources.keySet();
@@ -249,6 +254,7 @@ public final class RmNettyRemotingClient extends AbstractNettyRemotingClient {
         instance = null;
     }
 
+    // 注册请求
     @Override
     protected Function<String, NettyPoolKey> getPoolKeyFunction() {
         return serverAddress -> {

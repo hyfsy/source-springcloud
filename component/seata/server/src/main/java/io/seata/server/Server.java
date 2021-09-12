@@ -57,11 +57,13 @@ public class Server {
             logger.info("The server is running in container.");
         }
 
+        // 解析命令行参数
         //initialize the parameter parser
         //Note that the parameter parser should always be the first line to execute.
         //Because, here we need to parse the parameters needed for startup.
         ParameterParser parameterParser = new ParameterParser(args);
 
+        // 指标注册
         //initialize the metrics
         MetricsManager.get().init();
 
@@ -72,13 +74,18 @@ public class Server {
                 new LinkedBlockingQueue<>(NettyServerConfig.getMaxTaskQueueSize()),
                 new NamedThreadFactory("ServerHandlerThread", NettyServerConfig.getMaxServerPoolSize()), new ThreadPoolExecutor.CallerRunsPolicy());
 
+        // netty服务器
         NettyRemotingServer nettyRemotingServer = new NettyRemotingServer(workingThreads);
         //server port
         nettyRemotingServer.setListenPort(parameterParser.getPort());
+        // nodeId 创建
         UUIDGenerator.init(parameterParser.getServerNode());
+
+        // 事务会话初始化
         //log store mode : file, db, redis
         SessionHolder.init(parameterParser.getStoreMode());
 
+        // 事务协调器
         DefaultCoordinator coordinator = new DefaultCoordinator(nettyRemotingServer);
         coordinator.init();
         nettyRemotingServer.setHandler(coordinator);
@@ -86,6 +93,7 @@ public class Server {
         ShutdownHook.getInstance().addDisposable(coordinator);
         ShutdownHook.getInstance().addDisposable(nettyRemotingServer);
 
+        // ip、端口处理
         //127.0.0.1 and 0.0.0.0 are not valid here.
         if (NetUtil.isValidIp(parameterParser.getHost(), false)) {
             XID.setIpAddress(parameterParser.getHost());
@@ -94,6 +102,7 @@ public class Server {
         }
         XID.setPort(nettyRemotingServer.getListenPort());
 
+        // 启动netty服务器
         try {
             nettyRemotingServer.init();
         } catch (Throwable e) {

@@ -33,6 +33,7 @@ public class ProcessContextImpl implements HierarchicalProcessContext, ProcessCo
 
     private Map<String, Object> variables = new ConcurrentHashMap<>();
     private Instruction instruction;
+    // loop使用
     private ProcessContext parent;
 
     @Override

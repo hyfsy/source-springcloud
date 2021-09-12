@@ -133,6 +133,7 @@ public interface SessionManager extends SessionLifecycleListener, Disposable {
         return true;
     }
 
+
     /**
      * un scheduled lock
      *
@@ -142,5 +143,4 @@ public interface SessionManager extends SessionLifecycleListener, Disposable {
     default boolean unScheduledLock(String key) {
         return true;
     }
-
 }

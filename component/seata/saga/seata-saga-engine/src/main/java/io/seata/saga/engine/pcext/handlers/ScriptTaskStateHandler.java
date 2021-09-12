@@ -59,9 +59,11 @@ public class ScriptTaskStateHandler implements StateHandler, InterceptableStateH
         StateInstruction instruction = context.getInstruction(StateInstruction.class);
         ScriptTaskStateImpl state = (ScriptTaskStateImpl) instruction.getState(context);
 
+        // 获取脚本信息
         String scriptType = state.getScriptType();
         String scriptContent = state.getScriptContent();
 
+        // 获取拦截器里计算好表达式的最终参数
         Object result;
         try {
             List<Object> input = (List<Object>) context.getVariable(DomainConstants.VAR_NAME_INPUT_PARAMS);
@@ -74,12 +76,14 @@ public class ScriptTaskStateHandler implements StateHandler, InterceptableStateH
             StateMachineConfig stateMachineConfig = (StateMachineConfig) context.getVariable(
                     DomainConstants.VAR_NAME_STATEMACHINE_CONFIG);
 
+            // 获取脚本引擎
             ScriptEngine scriptEngine = getScriptEngineFromCache(scriptType, stateMachineConfig.getScriptEngineManager());
             if (scriptEngine == null) {
                 throw new EngineExecutionException("No such ScriptType[" + scriptType + "]",
                         FrameworkErrorCode.ObjectNotExists);
             }
 
+            // 将上面计算好的值和表达式的变量绑定
             Bindings bindings = null;
             Map<String, Object> inputMap = null;
             if (CollectionUtils.isNotEmpty(input) && input.get(0) instanceof Map) {
@@ -100,6 +104,8 @@ public class ScriptTaskStateHandler implements StateHandler, InterceptableStateH
                     }
                 }
             }
+
+            // 执行脚本
             if (bindings != null) {
                 result = scriptEngine.eval(scriptContent, bindings);
             }
@@ -112,6 +118,7 @@ public class ScriptTaskStateHandler implements StateHandler, InterceptableStateH
                         state.getName(), scriptType, result);
             }
 
+            // 获取结果
             if (result != null) {
                 ((HierarchicalProcessContext) context).setVariableLocally(DomainConstants.VAR_NAME_OUTPUT_PARAMS,
                         result);

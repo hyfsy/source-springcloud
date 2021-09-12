@@ -58,6 +58,7 @@ public class DefaultSagaTransactionalTemplate
     private String txServiceGroup;
     private ApplicationContext applicationContext;
 
+    // 没调用过
     @Override
     public void commitTransaction(GlobalTransaction tx) throws TransactionalExecutor.ExecutionException {
         try {
@@ -70,6 +71,7 @@ public class DefaultSagaTransactionalTemplate
         }
     }
 
+    // 没调用过
     @Override
     public void rollbackTransaction(GlobalTransaction tx, Throwable ex)
         throws TransactionException, TransactionalExecutor.ExecutionException {
@@ -98,6 +100,7 @@ public class DefaultSagaTransactionalTemplate
         return GlobalTransactionContext.reload(xid);
     }
 
+    // 全局事务报告，让TC根据全局状态来处理提交或回滚
     @Override
     public void reportTransaction(GlobalTransaction tx, GlobalStatus globalStatus)
         throws TransactionalExecutor.ExecutionException {
@@ -110,6 +113,7 @@ public class DefaultSagaTransactionalTemplate
         }
     }
 
+    // 普通的注册
     @Override
     public long branchRegister(String resourceId, String clientId, String xid, String applicationData, String lockKeys)
         throws TransactionException {

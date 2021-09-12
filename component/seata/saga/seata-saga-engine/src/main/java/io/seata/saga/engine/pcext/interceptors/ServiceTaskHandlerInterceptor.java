@@ -71,22 +71,28 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
     @Override
     public void preProcess(ProcessContext context) throws EngineExecutionException {
 
+        // 当前状态指令
         StateInstruction instruction = context.getInstruction(StateInstruction.class);
 
+        // 引擎使用的状态机实体
         StateMachineInstance stateMachineInstance = (StateMachineInstance)context.getVariable(
             DomainConstants.VAR_NAME_STATEMACHINE_INST);
+        // 状态机配置
         StateMachineConfig stateMachineConfig = (StateMachineConfig)context.getVariable(
             DomainConstants.VAR_NAME_STATEMACHINE_CONFIG);
 
+        // 超时处理，直接结束流程
         if (EngineUtils.isTimeout(stateMachineInstance.getGmtUpdated(), stateMachineConfig.getTransOperationTimeout())) {
             String message = "Saga Transaction [stateMachineInstanceId:" + stateMachineInstance.getId()
                     + "] has timed out, stop execution now.";
 
             LOGGER.error(message);
 
+            // 创建异常
             EngineExecutionException exception = ExceptionUtils.createEngineExecutionException(null,
                     FrameworkErrorCode.StateMachineExecutionTimeout, message, stateMachineInstance, instruction.getStateName());
 
+            // 持久化状态机信息
             EngineUtils.failStateMachine(context, exception);
 
             throw exception;
@@ -96,13 +102,18 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
 
         Map<String, Object> contextVariables = (Map<String, Object>)context.getVariable(
             DomainConstants.VAR_NAME_STATEMACHINE_CONTEXT);
+        // 获取当前指令对应的状态实体
         ServiceTaskStateImpl state = (ServiceTaskStateImpl)instruction.getState(context);
+
+        // 解析状态机的入参值
         List<Object> serviceInputParams = null;
         if (contextVariables != null) {
             try {
                 serviceInputParams = ParameterUtils.createInputParams(stateMachineConfig.getExpressionFactoryManager(), stateInstance,
                     state, contextVariables);
             } catch (Exception e) {
+
+                // 解析表达式失败
 
                 String message = "Task [" + state.getName()
                     + "] input parameters assign failed, please check 'Input' expression:" + e.getMessage();
@@ -121,14 +132,18 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
 
         stateInstance.setMachineInstanceId(stateMachineInstance.getId());
         stateInstance.setStateMachineInstance(stateMachineInstance);
-        Object isForCompensation = state.isForCompensation();
+        Object isForCompensation = state.isForCompensation(); // 被其他状态指定了补偿状态的状态默认为true，也可配置
+
+        // loop状态 & 不是补偿状态
         if (context.hasVariable(DomainConstants.VAR_NAME_IS_LOOP_STATE) && !Boolean.TRUE.equals(isForCompensation)) {
             stateInstance.setName(LoopTaskUtils.generateLoopStateName(context, state.getName()));
             StateInstance lastRetriedStateInstance = LoopTaskUtils.findOutLastRetriedStateInstance(stateMachineInstance,
                 stateInstance.getName());
             stateInstance.setStateIdRetriedFor(
                 lastRetriedStateInstance == null ? null : lastRetriedStateInstance.getId());
-        } else {
+        }
+        // 正常执行流程
+        else {
             stateInstance.setName(state.getName());
             stateInstance.setStateIdRetriedFor(
                 (String)context.getVariable(state.getName() + DomainConstants.VAR_NAME_RETRIED_STATE_INST_ID));
@@ -137,6 +152,7 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
         stateInstance.setGmtUpdated(stateInstance.getGmtStarted());
         stateInstance.setStatus(ExecutionStatus.RU);
 
+        // 没有使用过
         if (StringUtils.hasLength(stateInstance.getBusinessKey())) {
 
             ((Map<String, Object>)context.getVariable(DomainConstants.VAR_NAME_STATEMACHINE_CONTEXT)).put(
@@ -150,12 +166,15 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
         stateInstance.setServiceMethod(state.getServiceMethod());
         stateInstance.setServiceType(state.getServiceType());
 
+        // 补偿处理中，设置下关联关系
         if (isForCompensation != null && (Boolean)isForCompensation) {
             CompensationHolder compensationHolder = CompensationHolder.getCurrent(context, true);
             StateInstance stateToBeCompensated = compensationHolder.getStatesNeedCompensation().get(state.getName());
             if (stateToBeCompensated != null) {
 
+                // 需要补偿的状态
                 stateToBeCompensated.setCompensationState(stateInstance);
+                // 当前正在补偿的状态
                 stateInstance.setStateIdCompensatedFor(stateToBeCompensated.getId());
             } else {
                 LOGGER.error("Compensation State[{}] has no state to compensate, maybe this is a bug.",
@@ -165,9 +184,11 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
                 stateInstance);
         }
 
+        // 正常的forward状态，全局提交流程，saga的提交的意义不太一样，代表了状态机重新流转，因为之前失败了
         if (DomainConstants.OPERATION_NAME_FORWARD.equals(context.getVariable(DomainConstants.VAR_NAME_OPERATION_NAME))
             && StringUtils.isEmpty(stateInstance.getStateIdRetriedFor()) && !state.isForCompensation()) {
 
+            // 将生成这个重试状态的前一个失败状态设置为忽略，即不需要再继续执行了，因为已经生成了当前状态表示
             List<StateInstance> stateList = stateMachineInstance.getStateList();
             if (CollectionUtils.isNotEmpty(stateList)) {
                 for (int i = stateList.size() - 1; i >= 0; i--) {
@@ -175,6 +196,7 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
 
                     if (stateInstance.getName().equals(executedState.getName())) {
                         stateInstance.setStateIdRetriedFor(executedState.getId());
+                        // find latest execute will ignore
                         executedState.setIgnoreStatus(true);
                         break;
                     }
@@ -184,12 +206,15 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
 
         stateInstance.setInputParams(serviceInputParams);
 
+        // 状态机信息要持久化
         if (stateMachineInstance.getStateMachine().isPersist() && state.isPersist()
             && stateMachineConfig.getStateLogStore() != null) {
 
             try {
                 stateMachineConfig.getStateLogStore().recordStateStarted(stateInstance, context);
             } catch (Exception e) {
+
+                // 存储异常，直接结束
 
                 String message = "Record state[" + state.getName() + "] started failed, stateMachineInstance[" + stateMachineInstance
                         .getId() + "], Reason: " + e.getMessage();
@@ -203,9 +228,11 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
             }
         }
 
+        // 生成状态的id
         if (StringUtils.isEmpty(stateInstance.getId())) {
             stateInstance.setId(stateMachineConfig.getSeqGenerator().generate(DomainConstants.SEQ_ENTITY_STATE_INST));
         }
+        // 最后真正的作用：状态实例放入状态机实例中
         stateMachineInstance.putStateInstance(stateInstance.getId(), stateInstance);
         ((HierarchicalProcessContext)context).setVariableLocally(DomainConstants.VAR_NAME_STATE_INST, stateInstance);
     }
@@ -232,8 +259,10 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
         }
         stateInstance.setException(exp);
 
+        // 计算异常对应的状态，支持SpEL
         decideExecutionStatus(context, stateInstance, state, exp);
 
+        // 成功状态清除EX参数
         if (ExecutionStatus.SU.equals(stateInstance.getStatus()) && exp != null) {
 
             if (LOGGER.isInfoEnabled()) {
@@ -244,11 +273,13 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
             context.removeVariable(DomainConstants.VAR_NAME_CURRENT_EXCEPTION);
         }
 
+        // 合并startParams和返回值
         Map<String, Object> contextVariables = (Map<String, Object>)context.getVariable(
             DomainConstants.VAR_NAME_STATEMACHINE_CONTEXT);
         Object serviceOutputParams = context.getVariable(DomainConstants.VAR_NAME_OUTPUT_PARAMS);
         if (serviceOutputParams != null) {
             try {
+                // 方法返回值也可以为SpEL表达式，会处理下
                 Map<String, Object> outputVariablesToContext = ParameterUtils.createOutputParams(
                     stateMachineConfig.getExpressionFactoryManager(), state, serviceOutputParams);
                 if (CollectionUtils.isNotEmpty(outputVariablesToContext)) {
@@ -273,16 +304,20 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
             }
         }
 
+        // 不需要再使用了，移除
         context.removeVariable(DomainConstants.VAR_NAME_OUTPUT_PARAMS);
         context.removeVariable(DomainConstants.VAR_NAME_INPUT_PARAMS);
 
         stateInstance.setGmtEnd(new Date());
 
+        // 持久化，分支事务结束
         if (stateMachineInstance.getStateMachine().isPersist() && state.isPersist()
             && stateMachineConfig.getStateLogStore() != null) {
             stateMachineConfig.getStateLogStore().recordStateFinished(stateInstance, context);
         }
 
+        // 没有Catch处理过异常，这边额外处理下，直接结束当前状态机
+        // Catch过的则不再抛异常了
         if (exp != null && context.getVariable(DomainConstants.VAR_NAME_IS_EXCEPTION_NOT_CATCH) != null
             && (Boolean)context.getVariable(DomainConstants.VAR_NAME_IS_EXCEPTION_NOT_CATCH)) {
             //If there is an exception and there is no catch, need to exit the state machine to execute.
@@ -295,6 +330,7 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
 
     private void decideExecutionStatus(ProcessContext context, StateInstance stateInstance, ServiceTaskStateImpl state,
                                        Exception exp) {
+        // 状态映射处理，配置的 Status
         Map<String, String> statusMatchList = state.getStatus();
         if (CollectionUtils.isNotEmpty(statusMatchList)) {
             if (state.isAsync()) {
@@ -308,6 +344,7 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
                 StateMachineConfig stateMachineConfig = (StateMachineConfig)context.getVariable(
                     DomainConstants.VAR_NAME_STATEMACHINE_CONFIG);
 
+                // 初始化 Evaluator
                 Map<Object, String> statusEvaluators = state.getStatusEvaluators();
                 if (statusEvaluators == null) {
                     synchronized (state) {
@@ -319,6 +356,7 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
                             for (Map.Entry<String, String> entry : statusMatchList.entrySet()) {
                                 expressionStr = entry.getKey();
                                 statusVal = entry.getValue();
+                                // 解析
                                 evaluator = createEvaluator(stateMachineConfig.getEvaluatorFactoryManager(), expressionStr);
                                 if (evaluator != null) {
                                     statusEvaluators.put(evaluator, statusVal);
@@ -329,6 +367,7 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
                     }
                 }
 
+                // 匹配，切换状态
                 for (Object evaluatorObj : statusEvaluators.keySet()) {
                     Evaluator evaluator = (Evaluator)evaluatorObj;
                     String statusVal = statusEvaluators.get(evaluator);
@@ -338,6 +377,7 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
                     }
                 }
 
+                // 流程结束，没有异常，但上面没有状态能匹配，有问题，需要直接抛异常了
                 if (exp == null && (stateInstance.getStatus() == null || ExecutionStatus.RU.equals(
                     stateInstance.getStatus()))) {
 
@@ -369,16 +409,21 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
             }
         }
 
+        // 正在运行的流程，上面没有匹配状态或匹配了没有成功的才会走这里
         if (stateInstance.getStatus() == null || ExecutionStatus.RU.equals(stateInstance.getStatus())) {
 
+            // 没有异常，代表成功
             if (exp == null) {
                 stateInstance.setStatus(ExecutionStatus.SU);
-            } else {
+            }
+            // 更新或补偿
+            else {
                 if (state.isForUpdate() || state.isForCompensation()) {
 
                     stateInstance.setStatus(ExecutionStatus.UN);
                     ExceptionUtils.NetExceptionType t = ExceptionUtils.getNetExceptionType(exp);
                     if (t != null) {
+                        // 网络异常，直接失败
                         if (t.equals(ExceptionUtils.NetExceptionType.CONNECT_EXCEPTION)) {
                             stateInstance.setStatus(ExecutionStatus.FA);
                         } else if (t.equals(ExceptionUtils.NetExceptionType.READ_TIMEOUT_EXCEPTION)) {
@@ -387,7 +432,9 @@ public class ServiceTaskHandlerInterceptor implements StateHandlerInterceptor {
                     } else {
                         stateInstance.setStatus(ExecutionStatus.UN);
                     }
-                } else {
+                }
+                // 失败
+                else {
                     stateInstance.setStatus(ExecutionStatus.FA);
                 }
             }

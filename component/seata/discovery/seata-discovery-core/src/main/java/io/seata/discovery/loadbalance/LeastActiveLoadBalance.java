@@ -24,6 +24,8 @@ import io.seata.common.rpc.RpcStatus;
 import static io.seata.discovery.loadbalance.LoadBalanceFactory.LEAST_ACTIVE_LOAD_BALANCE;
 
 /**
+ * 选择一个最空闲的
+ *
  * The type Least Active load balance.
  *
  * @author ph3636
@@ -38,6 +40,7 @@ public class LeastActiveLoadBalance extends AbstractLoadBalance {
         int leastCount = 0;
         int[] leastIndexes = new int[length];
         for (int i = 0; i < length; i++) {
+            // rpc连接上的活跃的连接数
             long active = RpcStatus.getStatus(invokers.get(i).toString()).getActive();
             if (leastActive == -1 || active < leastActive) {
                 leastActive = active;

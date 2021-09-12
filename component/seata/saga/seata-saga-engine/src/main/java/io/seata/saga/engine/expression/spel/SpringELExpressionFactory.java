@@ -40,9 +40,13 @@ public class SpringELExpressionFactory implements ExpressionFactory, Application
 
     @Override
     public Expression createExpression(String expression) {
+        // 解析
         org.springframework.expression.Expression defaultExpression = parser.parseExpression(expression);
+        // 获取上下文
         EvaluationContext evaluationContext = ((SpelExpression)defaultExpression).getEvaluationContext();
+        // 设置对象解析器，从容器中获取用到的对象
         ((StandardEvaluationContext)evaluationContext).setBeanResolver(new AppContextBeanResolver());
+        // 包装为自己的Expression对象
         return new SpringELExpression(defaultExpression);
     }
 
