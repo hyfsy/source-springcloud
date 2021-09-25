@@ -90,6 +90,7 @@ public class GlobalSession implements SessionLifecycle, SessionStorable {
 
     private final ArrayList<BranchSession> branchSessions = new ArrayList<>();
 
+    // 给 file 会话管理器使用
     private GlobalSessionLock globalSessionLock = new GlobalSessionLock();
 
 

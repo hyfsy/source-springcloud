@@ -23,6 +23,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
+ * 用于netty的同步请求处理
+ *
  * The type Message future.
  *
  * @author slievrly
