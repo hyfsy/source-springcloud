@@ -5,4 +5,3 @@ component/alertmanager/
 component/prometheus/
 component/prometheus_client_java/
 component/skywalking/skywalking-agent/
-component/sentinel/

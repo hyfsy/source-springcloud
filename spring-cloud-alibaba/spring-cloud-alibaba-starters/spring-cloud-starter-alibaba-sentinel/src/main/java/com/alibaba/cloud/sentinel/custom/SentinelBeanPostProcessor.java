@@ -43,6 +43,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 /**
+ * 校验 @SentinelRestTemplate的配置 + 为 RestTemplate添加拦截器
+ *
  * PostProcessor handle @SentinelRestTemplate Annotation, add interceptor for
  * RestTemplate.
  *

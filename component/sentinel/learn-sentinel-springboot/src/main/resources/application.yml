@@ -1,0 +1,50 @@
+server:
+  port: 8331
+spring:
+  application:
+    name: nacos-service-consumer-sentinel
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+        server-addr: 127.0.0.1:8848
+    sentinel:
+      enabled: true # 启动Sentinel自动化配置
+      eager: false # 是否提前触发 Sentinel 初始化
+      transport:
+        port: 8719 # 默认端口，会在应用对应的机器上启动一个 Http Server，与dashboard交互
+        dashboard: localhost:9080 # 指定控制台的地址
+        heartbeat-interval-ms:  # 应用与Sentinel控制台的心跳间隔时间
+        client-ip: localhost # 此配置的客户端IP将被注册到 Sentinel Server端
+      filter:
+        enabled: true # Enable to instance CommonFilter
+#        order: Integer.MIN_VALUE # Servlet Filter的加载顺序。Starter内部会构造这个filter
+        url-patterns: /** # 数据类型是数组。表示Servlet Filter的url pattern集合
+      metric:
+        charset: UTF-8 # metric文件字符集
+#        file-single-size:  # metric 单个文件的大小
+#        file-total-count:  # metric 总文件数量
+      log:
+        dir: # 日志文件所在的目录
+        switch-pid: false # 日志文件名是否需要带上pid
+#      block-page: http://www.baidu.com # 自定义的跳转 URL，当请求被限流时会自动跳转至设定好的 URL
+      flow:
+        cold-factor: 3 # 冷启动因子
+      # zuul.order.pre: 10000 # SentinelZuulPreFilter 的 order
+      # zuul.order.post: 1000 # SentinelZuulPostFilter 的 order
+      # zuul.order.error: -1 # SentinelZuulErrorFilter 的 order
+      http-method-specify: false
+      web-context-unify: true
+#      datasource:
+#        ds1:
+#          nacos:
+#            server-addr: localhost:8848
+#            data-id: sentinel
+#            group-id: SENTINEL_GROUP
+#            data-type: json
+#            rule-type: degrade
+management:
+  endpoints:
+    web:
+      exposure:
+        include: sentinel

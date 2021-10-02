@@ -59,7 +59,7 @@ public class SentinelProtectInterceptor implements ClientHttpRequestInterceptor 
 		URI uri = request.getURI();
 		String hostResource = request.getMethod().toString() + ":" + uri.getScheme()
 				+ "://" + uri.getHost()
-				+ (uri.getPort() == -1 ? "" : ":" + uri.getPort());
+				+ (uri.getPort() == -1 ?  "" : ":" + uri.getPort());
 		String hostWithPathResource = hostResource + uri.getPath();
 		boolean entryWithPath = true;
 		if (hostResource.equals(hostWithPathResource)) {
