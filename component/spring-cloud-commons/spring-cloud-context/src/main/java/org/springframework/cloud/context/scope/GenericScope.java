@@ -62,6 +62,8 @@ import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
 
 /**
+ * 刷新范围的对象是非单例的，看起来像单例是因为被对象获取后被范围对象缓存起来了，
+ * 刷新后，就是把缓存删了，重新获取一个新的对象
  * <p>
  * A generic Scope implementation.
  * </p>
@@ -136,6 +138,7 @@ public class GenericScope
 	@Override
 	public void destroy() {
 		List<Throwable> errors = new ArrayList<Throwable>();
+		// 缓存删了，再次获取就又会创建一个新的bean了
 		Collection<BeanLifecycleWrapper> wrappers = this.cache.clear();
 		for (BeanLifecycleWrapper wrapper : wrappers) {
 			try {
@@ -182,9 +185,11 @@ public class GenericScope
 
 	@Override
 	public Object get(String name, ObjectFactory<?> objectFactory) {
+		// 缓存不存在，则创建一个新的，否则返回已有的
 		BeanLifecycleWrapper value = this.cache.put(name, new BeanLifecycleWrapper(name, objectFactory));
 		this.locks.putIfAbsent(name, new ReentrantReadWriteLock());
 		try {
+			// 返回缓存的，或新创建一个
 			return value.getBean();
 		}
 		catch (RuntimeException e) {
@@ -259,6 +264,7 @@ public class GenericScope
 						&& root.getBeanClass() == ScopedProxyFactoryBean.class) {
 					// 是刷新范围的对象
 					if (getName().equals(root.getDecoratedDefinition().getBeanDefinition().getScope())) {
+						// 调用ScopedObject的方法进行加锁处理，防止该对象已经被删了，还在调用方法的并发问题
 						root.setBeanClass(LockedScopedProxyFactoryBean.class);
 						root.getConstructorArgumentValues().addGenericArgumentValue(this);
 						// surprising that a scoped proxy bean definition is not already
