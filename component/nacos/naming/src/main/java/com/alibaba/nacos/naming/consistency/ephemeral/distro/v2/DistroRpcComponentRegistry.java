@@ -33,10 +33,11 @@ import javax.annotation.PostConstruct;
  * Distro component registry for v2.
  *
  * @author xiweng.yy
- * @see com.alibaba.nacos.naming.consistency.ephemeral.distro.DistroHttpRegistry
+ * @see com.alibaba.nacos.naming.consistency.ephemeral.distro.DistroHttpComponentRegistry
+ * @change DistroClientComponentRegistry
  */
 @Component
-public class DistroClientComponentRegistry {
+public class DistroRpcComponentRegistry {
     
     private final ServerMemberManager serverMemberManager;
     
@@ -52,7 +53,7 @@ public class DistroClientComponentRegistry {
     
     private final UpgradeJudgement upgradeJudgement;
     
-    public DistroClientComponentRegistry(ServerMemberManager serverMemberManager, DistroProtocol distroProtocol,
+    public DistroRpcComponentRegistry(ServerMemberManager serverMemberManager, DistroProtocol distroProtocol,
             DistroComponentHolder componentHolder, DistroTaskEngineHolder taskEngineHolder,
             ClientManagerDelegate clientManager, ClusterRpcClientProxy clusterRpcClientProxy,
             UpgradeJudgement upgradeJudgement) {
@@ -73,7 +74,7 @@ public class DistroClientComponentRegistry {
     public void doRegister() {
         DistroClientDataProcessor dataProcessor = new DistroClientDataProcessor(clientManager, distroProtocol,
                 upgradeJudgement);
-        DistroTransportAgent transportAgent = new DistroClientTransportAgent(clusterRpcClientProxy,
+        DistroTransportAgent transportAgent = new DistroRpcAgent(clusterRpcClientProxy,
                 serverMemberManager);
         DistroClientTaskFailedHandler taskFailedHandler = new DistroClientTaskFailedHandler(taskEngineHolder);
         componentHolder.registerDataStorage(DistroClientDataProcessor.TYPE, dataProcessor);

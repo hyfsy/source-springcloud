@@ -59,6 +59,8 @@ public class ServiceInfo {
     
     private List<Instance> hosts = new ArrayList<Instance>();
     
+    // 本地缓存的刷新时间
+    // @see ServiceInfoUpdateService
     private long lastRefTime = 0L;
     
     private String checksum = "";

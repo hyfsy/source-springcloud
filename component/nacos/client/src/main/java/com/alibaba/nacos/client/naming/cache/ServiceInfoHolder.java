@@ -62,6 +62,7 @@ public class ServiceInfoHolder implements Closeable {
     
     private final FailoverReactor failoverReactor;
     
+    // 推空保护
     private final boolean pushEmptyProtection;
     
     private String cacheDir;
@@ -141,6 +142,8 @@ public class ServiceInfoHolder implements Closeable {
     }
     
     /**
+     * 通过传入的服务信息来更新本地的缓存，服务端主动推送会调用
+     *
      * Process service info.
      *
      * @param serviceInfo new service info
@@ -152,10 +155,12 @@ public class ServiceInfoHolder implements Closeable {
             return null;
         }
         ServiceInfo oldService = serviceInfoMap.get(serviceInfo.getKey());
+        // 推空保护
         if (isEmptyOrErrorPush(serviceInfo)) {
             //empty or error push, just ignore
             return oldService;
         }
+        // 全量更新
         serviceInfoMap.put(serviceInfo.getKey(), serviceInfo);
         boolean changed = isChangedServiceInfo(oldService, serviceInfo);
         if (StringUtils.isBlank(serviceInfo.getJsonFromServer())) {
@@ -165,8 +170,11 @@ public class ServiceInfoHolder implements Closeable {
         if (changed) {
             NAMING_LOGGER.info("current ips:(" + serviceInfo.ipCount() + ") service: " + serviceInfo.getKey() + " -> "
                     + JacksonUtils.toJson(serviceInfo.getHosts()));
+            // 通知用户订阅的监听器
+            // @see InstancesChangeNotifier
             NotifyCenter.publishEvent(new InstancesChangeEvent(serviceInfo.getName(), serviceInfo.getGroupName(),
                     serviceInfo.getClusters(), serviceInfo.getHosts()));
+            // 将服务信息写入本地缓存
             DiskCache.write(serviceInfo, cacheDir);
         }
         return serviceInfo;

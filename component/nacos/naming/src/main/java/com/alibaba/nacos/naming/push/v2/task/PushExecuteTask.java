@@ -64,6 +64,7 @@ public class PushExecuteTask extends AbstractExecuteTask {
                     continue;
                 }
                 // 获取订阅信息
+                // 不会为null @see #getTargetClientIds
                 Subscriber subscriber = delayTaskEngine.getClientManager().getClient(each).getSubscriber(service);
                 // 推送，请求
                 delayTaskEngine.getPushExecutor().doPushWithCallback(each, subscriber, wrapper,
@@ -82,6 +83,7 @@ public class PushExecuteTask extends AbstractExecuteTask {
         return new PushDataWrapper(serviceInfo);
     }
     
+    // 只拿订阅过的客户端信息或指定的客户端信息
     private Collection<String> getTargetClientIds() {
         return delayTask.isPushToAll() ? delayTaskEngine.getIndexesManager().getAllClientsSubscribeService(service)
                 : delayTask.getTargetClients();

@@ -25,6 +25,8 @@ import org.slf4j.Logger;
 import java.util.Collection;
 
 /**
+ * 实际执行任务的执行引擎，提供内置的一堆线程帮助执行，没有retry死循环处理机制
+ *
  * Nacos execute task execute engine.
  *
  * @author xiweng.yy

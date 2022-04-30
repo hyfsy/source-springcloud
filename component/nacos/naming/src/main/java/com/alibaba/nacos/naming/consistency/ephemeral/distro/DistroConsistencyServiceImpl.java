@@ -57,7 +57,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * 同步本地的数据，保证数据的一致
+ * 同步本地的数据，保证数据的一致，v1版本的http使用
  *
  * A consistency protocol algorithm called <b>Distro</b>
  *

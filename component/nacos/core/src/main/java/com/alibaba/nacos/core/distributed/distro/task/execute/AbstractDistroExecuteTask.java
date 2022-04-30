@@ -60,6 +60,7 @@ public abstract class AbstractDistroExecuteTask extends AbstractExecuteTask {
             return;
         }
         Loggers.DISTRO.info("[DISTRO-START] {}", toString());
+        // http不支持异步，rpc支持异步
         if (transportAgent.supportCallbackTransport()) {
             doExecuteWithCallback(new DistroExecuteCallback());
         } else {
@@ -106,6 +107,7 @@ public abstract class AbstractDistroExecuteTask extends AbstractExecuteTask {
      */
     protected void handleFailedTask() {
         String type = getDistroKey().getResourceType();
+        // DistroClientTaskFailedHandler
         DistroFailedTaskHandler failedTaskHandler = distroComponentHolder.findFailedTaskHandler(type);
         if (null == failedTaskHandler) {
             Loggers.DISTRO.warn("[DISTRO] Can't find failed task for type {}, so discarded", type);

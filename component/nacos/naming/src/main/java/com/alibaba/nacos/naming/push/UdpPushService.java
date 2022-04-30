@@ -91,8 +91,10 @@ public class UdpPushService implements ApplicationContextAware, ApplicationListe
     
     static {
         try {
+            // 本地开启一个随机端口来发送udp报文
             udpSocket = new DatagramSocket();
             
+            // 开启一个线程来接收客户端的udp响应
             Receiver receiver = new Receiver();
             
             Thread inThread = new Thread(receiver);
@@ -127,8 +129,10 @@ public class UdpPushService implements ApplicationContextAware, ApplicationListe
         if (futureMap.containsKey(UtilsAndCommons.assembleFullServiceName(namespaceId, serviceName))) {
             return;
         }
+        // 执行推送
         Future future = GlobalExecutor.scheduleUdpSender(() -> {
             try {
+                // 获取需要推送的客户端
                 Loggers.PUSH.info(serviceName + " is changed, add it to push queue.");
                 ConcurrentMap<String, PushClient> clients = subscriberServiceV1.getClientMap()
                         .get(UtilsAndCommons.assembleFullServiceName(namespaceId, serviceName));
@@ -146,6 +150,7 @@ public class UdpPushService implements ApplicationContextAware, ApplicationListe
                         continue;
                     }
                     
+                    // 生成推送数据-从当前循环产生的缓存中获取
                     AckEntry ackEntry;
                     Loggers.PUSH.debug("push serviceName: {} to client: {}", serviceName, client);
                     String key = getPushCacheKey(serviceName, client.getIp(), client.getAgent());
@@ -158,7 +163,8 @@ public class UdpPushService implements ApplicationContextAware, ApplicationListe
                         
                         Loggers.PUSH.debug("[PUSH-CACHE] cache hit: {}:{}", serviceName, client.getAddrStr());
                     }
-                    
+    
+                    // 生成推送数据-创建
                     if (compressData != null) {
                         ackEntry = prepareAckEntry(client, compressData, data, lastRefTime);
                     } else {
@@ -173,6 +179,7 @@ public class UdpPushService implements ApplicationContextAware, ApplicationListe
                             client.getServiceName(), client.getAddrStr(), client.getAgent(),
                             (ackEntry == null ? null : ackEntry.getKey()));
                     
+                    // 推送到其他客户端
                     udpPush(ackEntry);
                 }
             } catch (Exception e) {
@@ -383,10 +390,12 @@ public class UdpPushService implements ApplicationContextAware, ApplicationListe
             udpSendTimeMap.put(ackEntry.getKey(), System.currentTimeMillis());
             
             Loggers.PUSH.info("send udp packet: " + ackEntry.getKey());
+            // UDP的数据发送
             udpSocket.send(ackEntry.getOrigin());
             
             ackEntry.increaseRetryTime();
             
+            // 添加发送失败的重试机制
             GlobalExecutor.scheduleRetransmitter(new Retransmitter(ackEntry),
                     TimeUnit.NANOSECONDS.toMillis(Constants.ACK_TIMEOUT_NANOS), TimeUnit.MILLISECONDS);
             
@@ -402,6 +411,7 @@ public class UdpPushService implements ApplicationContextAware, ApplicationListe
         }
     }
     
+    // 发送失败的重试
     public static class Retransmitter implements Runnable {
         
         AckEntry ackEntry;
@@ -412,6 +422,7 @@ public class UdpPushService implements ApplicationContextAware, ApplicationListe
         
         @Override
         public void run() {
+            // ack已经被确认，说明udp已请求成功，就会从map中删除
             if (ackMap.containsKey(ackEntry.getKey())) {
                 Loggers.PUSH.info("retry to push data, key: " + ackEntry.getKey());
                 udpPush(ackEntry);
@@ -419,6 +430,7 @@ public class UdpPushService implements ApplicationContextAware, ApplicationListe
         }
     }
     
+    // 接收客户端的响应
     public static class Receiver implements Runnable {
         
         @Override
@@ -428,8 +440,10 @@ public class UdpPushService implements ApplicationContextAware, ApplicationListe
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 
                 try {
+                    // 阻塞接收客户端的响应
                     udpSocket.receive(packet);
                     
+                    // 解包，没啥用
                     String json = new String(packet.getData(), 0, packet.getLength(), StandardCharsets.UTF_8).trim();
                     AckPacket ackPacket = JacksonUtils.toObj(json, AckPacket.class);
                     
@@ -441,6 +455,7 @@ public class UdpPushService implements ApplicationContextAware, ApplicationListe
                         Loggers.PUSH.warn("ack takes too long from {} ack json: {}", packet.getSocketAddress(), json);
                     }
                     
+                    // 有响应返回，表示推送成功，确认ack
                     String ackKey = AckEntry.getAckKey(ip, port, ackPacket.lastRefTime);
                     AckEntry ackEntry = ackMap.remove(ackKey);
                     if (ackEntry == null) {

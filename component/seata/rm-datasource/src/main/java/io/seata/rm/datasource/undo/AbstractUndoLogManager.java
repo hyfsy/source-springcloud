@@ -239,6 +239,7 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
             LOGGER.debug("Flushing UNDO LOG: {}", new String(undoLogContent, Constants.DEFAULT_CHARSET));
         }
 
+        // 插入undo_log，状态为normal，表示正常插入，如果当前为悬挂状态，则会插入失败，因为空回滚的时候也会插入一条
         insertUndoLogWithNormal(xid, branchId, buildContext(parser.getName(), compressorType), undoLogContent, cp.getTargetConnection());
     }
 
@@ -272,6 +273,7 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
                 selectPST.setString(2, xid);
                 rs = selectPST.executeQuery();
 
+                // 校验是否为空回滚
                 boolean exists = false;
                 while (rs.next()) {
                     exists = true;
@@ -326,6 +328,7 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
                 // to prevent the local transaction of the first phase of other programs from being correctly submitted.
                 // See https://github.com/seata/seata/issues/489
 
+                // 非空回滚，直接删除
                 if (exists) {
                     deleteUndoLog(xid, branchId, conn);
                     conn.commit();
@@ -333,7 +336,9 @@ public abstract class AbstractUndoLogManager implements UndoLogManager {
                         LOGGER.info("xid {} branch {}, undo_log deleted with {}", xid, branchId,
                             State.GlobalFinished.name());
                     }
-                } else {
+                }
+                // 空回滚状态，添加一条空日志
+                else {
                     insertUndoLogWithGlobalFinished(xid, branchId, UndoLogParserFactory.getInstance(), conn);
                     conn.commit();
                     if (LOGGER.isInfoEnabled()) {

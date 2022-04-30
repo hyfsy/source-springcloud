@@ -85,6 +85,7 @@ public class NamingClientProxyDelegate implements NamingClientProxy {
             t.setDaemon(true);
             return t;
         });
+        // 5/s刷新登录的token
         this.securityProxy.login(serverListManager.getServerList());
         this.executorService.scheduleWithFixedDelay(() -> securityProxy.login(serverListManager.getServerList()), 0,
                 securityInfoRefreshIntervalMills, TimeUnit.MILLISECONDS);
@@ -145,9 +146,10 @@ public class NamingClientProxyDelegate implements NamingClientProxy {
         ServiceInfo result = serviceInfoHolder.getServiceInfoMap().get(serviceKey);
         // 没有，需要订阅下该服务
         if (null == result) {
+            // 订阅后，服务端还会主动推送最新的服务信息 当服务端的服务信息变更时
             result = grpcClientProxy.subscribe(serviceName, groupName, clusters);
         }
-        // 添加定时任务，定时更新服务信息
+        // 订阅后，添加定时任务，定时更新服务信息，默认15s
         serviceInfoUpdateService.scheduleUpdateIfAbsent(serviceName, groupName, clusters);
         // 更新本地服务信息
         serviceInfoHolder.processServiceInfo(result);

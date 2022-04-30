@@ -48,8 +48,10 @@ import java.util.Set;
 
 /**
  * Distro processor for v2.
- *
- * 处理当前节点更新的数据，同步到其他节点
+ * <p>
+ * 处理当前节点更新的数据，同步到其他节点，v2版本的rpc使用
+ * <p>
+ * 该类既能负责发送distro请求到其他节点，又能处理其他节点发送过来的请求
  *
  * @author xiweng.yy
  */
@@ -92,6 +94,8 @@ public class DistroClientDataProcessor extends SmartSubscriber implements Distro
         return result;
     }
     
+    // 接受本地的服务实例数据的更新或校验任务，通过distroProtocol发送对应的请求到其他节点
+    // 用于进行数据同步，维护数据一致
     @Override
     public void onEvent(Event event) {
         if (EnvUtil.getStandaloneMode()) {
@@ -123,10 +127,14 @@ public class DistroClientDataProcessor extends SmartSubscriber implements Distro
         if (null == client || !client.isEphemeral() || !clientManager.isResponsibleClient(client)) {
             return;
         }
+        // 发送同步请求到其他节点
+        // 客户端连接断开
         if (event instanceof ClientEvent.ClientDisconnectEvent) {
             DistroKey distroKey = new DistroKey(client.getClientId(), TYPE);
             distroProtocol.sync(distroKey, DataOperation.DELETE);
-        } else if (event instanceof ClientEvent.ClientChangedEvent) {
+        }
+        // 添加了新的服务信息/Client
+        else if (event instanceof ClientEvent.ClientChangedEvent) {
             DistroKey distroKey = new DistroKey(client.getClientId(), TYPE);
             distroProtocol.sync(distroKey, DataOperation.CHANGE);
         }
@@ -156,8 +164,10 @@ public class DistroClientDataProcessor extends SmartSubscriber implements Distro
         }
     }
     
+    // 更新客户端
     private void handlerClientSyncData(ClientSyncData clientSyncData) {
-        Loggers.DISTRO.info("[Client-Add] Received distro client sync data {}", clientSyncData.getClientId());
+        Loggers.DISTRO.info("[Client-A|dd] Received distro client sync data {}", clientSyncData.getClientId());
+        // 本地创建一个非直连的Client isNative=false，意思是从其他节点中同步过来的
         clientManager.syncClientConnected(clientSyncData.getClientId(), clientSyncData.getAttributes());
         Client client = clientManager.getClient(clientSyncData.getClientId());
         upgradeClient(client, clientSyncData);
@@ -169,17 +179,21 @@ public class DistroClientDataProcessor extends SmartSubscriber implements Distro
         List<String> serviceNames = clientSyncData.getServiceNames();
         List<InstancePublishInfo> instances = clientSyncData.getInstancePublishInfos();
         Set<Service> syncedService = new HashSet<>();
+        // 新增/更新
         for (int i = 0; i < namespaces.size(); i++) {
             Service service = Service.newService(namespaces.get(i), groupNames.get(i), serviceNames.get(i));
             Service singleton = ServiceManager.getInstance().getSingleton(service);
             syncedService.add(singleton);
             InstancePublishInfo instancePublishInfo = instances.get(i);
+            // 远程发过来的实例数据是否已存在，不存在则处理
             if (!instancePublishInfo.equals(client.getInstancePublishInfo(singleton))) {
+                // 其他节点接收到还会发布同步事件？不会影响性能？
                 client.addServiceInstance(singleton, instancePublishInfo);
                 NotifyCenter.publishEvent(
                         new ClientOperationEvent.ClientRegisterServiceEvent(singleton, client.getClientId()));
             }
         }
+        // 删除
         for (Service each : client.getAllPublishedService()) {
             if (!syncedService.contains(each)) {
                 client.removeServiceInstance(each);
@@ -189,6 +203,7 @@ public class DistroClientDataProcessor extends SmartSubscriber implements Distro
         }
     }
     
+    // 处理来自其他节点的数据，校验客户端，进行心跳续期
     @Override
     public boolean processVerifyData(DistroData distroData, String sourceAddress) {
         DistroClientVerifyInfo verifyData = ApplicationUtils.getBean(Serializer.class)
@@ -200,16 +215,19 @@ public class DistroClientDataProcessor extends SmartSubscriber implements Distro
         return false;
     }
     
+    // 本地处理从其他节点拉取到的快照数据
     @Override
     public boolean processSnapshot(DistroData distroData) {
         ClientSyncDatumSnapshot snapshot = ApplicationUtils.getBean(Serializer.class)
                 .deserialize(distroData.getContent(), ClientSyncDatumSnapshot.class);
         for (ClientSyncData each : snapshot.getClientSyncDataList()) {
+            // 本地更新
             handlerClientSyncData(each);
         }
         return true;
     }
     
+    // 获取本地的客户端相关的所有数据，然后发送给其他的对等节点进行同步
     @Override
     public DistroData getDistroData(DistroKey distroKey) {
         Client client = clientManager.getClient(distroKey.getResourceKey());
@@ -220,6 +238,7 @@ public class DistroClientDataProcessor extends SmartSubscriber implements Distro
         return new DistroData(distroKey, data);
     }
     
+    // 获取本地全量的快照数据，返回给其他节点进行全量初始化
     @Override
     public DistroData getDatumSnapshot() {
         List<ClientSyncData> datum = new LinkedList<>();
@@ -236,6 +255,7 @@ public class DistroClientDataProcessor extends SmartSubscriber implements Distro
         return new DistroData(new DistroKey(DataOperation.SNAPSHOT.name(), TYPE), data);
     }
     
+    // 返回本地需要校验的数据，发送给对等节点
     @Override
     public List<DistroData> getVerifyData() {
         List<DistroData> result = new LinkedList<>();
@@ -246,6 +266,7 @@ public class DistroClientDataProcessor extends SmartSubscriber implements Distro
             }
             if (clientManager.isResponsibleClient(client)) {
                 // TODO add revision for client.
+                // 仅仅返回clientId
                 DistroClientVerifyInfo verifyData = new DistroClientVerifyInfo(client.getClientId(), 0);
                 DistroKey distroKey = new DistroKey(client.getClientId(), TYPE);
                 DistroData data = new DistroData(distroKey,

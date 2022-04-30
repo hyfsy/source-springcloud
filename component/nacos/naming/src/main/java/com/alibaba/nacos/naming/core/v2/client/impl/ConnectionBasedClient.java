@@ -33,6 +33,8 @@ public class ConnectionBasedClient extends AbstractClient {
     private final String connectionId;
     
     /**
+     * 当前客户端是注册进来的，而不是被其他节点通过distro同步进来的
+     *
      * {@code true} means this client is directly connect to current server. {@code false} means this client is synced
      * from other server.
      */
@@ -74,6 +76,7 @@ public class ConnectionBasedClient extends AbstractClient {
     
     @Override
     public boolean isExpire(long currentTime) {
+        // 过期仅对于被同步过来的节点
         return !isNative() && currentTime - getLastRenewTime() > Constants.DEFAULT_IP_DELETE_TIMEOUT;
     }
 }

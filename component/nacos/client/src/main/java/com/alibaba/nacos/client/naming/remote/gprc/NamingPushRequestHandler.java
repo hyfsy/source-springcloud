@@ -24,6 +24,8 @@ import com.alibaba.nacos.client.naming.cache.ServiceInfoHolder;
 import com.alibaba.nacos.common.remote.client.ServerRequestHandler;
 
 /**
+ * 服务端的主动推送处理，在服务端的服务变更后，主动通知到客户端
+ *
  * Naming push request handler.
  *
  * @author xiweng.yy
@@ -40,6 +42,7 @@ public class NamingPushRequestHandler implements ServerRequestHandler {
     public Response requestReply(Request request) {
         if (request instanceof NotifySubscriberRequest) {
             NotifySubscriberRequest notifyResponse = (NotifySubscriberRequest) request;
+            // 更新本地缓存
             serviceInfoHolder.processServiceInfo(notifyResponse.getServiceInfo());
             return new NotifySubscriberResponse();
         }

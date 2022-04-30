@@ -43,8 +43,8 @@ public class Nacos {
         
 //        System.setProperty("upgraded", "true");
 
-//        System.setProperty("nacos.standalone", "true"); // 单机 or 集群
-        System.setProperty("nacos.standalone", "false");
+        System.setProperty("nacos.standalone", "true"); // 单机 or 集群
+//        System.setProperty("nacos.standalone", "false");
         System.setProperty("nacos.naming.use-new-raft.first", "true"); // 指定使用新版的jraft协议（旧版为自己实现的，非jraft）
 
         String path = Nacos.class.getResource("/").getPath();

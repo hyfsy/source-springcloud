@@ -25,7 +25,7 @@ import com.alibaba.nacos.core.distributed.distro.task.execute.DistroSyncChangeTa
 import com.alibaba.nacos.core.distributed.distro.task.execute.DistroSyncDeleteTask;
 
 /**
- * 处理distro的同步任务
+ * 实际处理distro的同步任务
  *
  * Distro delay task processor.
  *

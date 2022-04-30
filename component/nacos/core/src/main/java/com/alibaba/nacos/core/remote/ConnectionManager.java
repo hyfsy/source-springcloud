@@ -93,7 +93,9 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
     private int loadClient = -1;
     
     /**
-     * 这个应该是当前节点的地址 ip:port
+     * 这个应该是负载较低的节点的地址 ip:port，通过 ServerLoaderController#smartReload 控制
+     *
+     * 在重置客户端连接的时候，指定一个负载小的服务端让客户端去连接
      */
     String redirectAddress = null;
     
@@ -283,6 +285,7 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
      * @param connectionId connectionId.
      */
     public void refreshActiveTime(String connectionId) {
+        // 客户端还活跃的心跳检查刷新
         Connection connection = connections.get(connectionId);
         if (connection != null) {
             connection.freshActiveTime();
@@ -295,6 +298,7 @@ public class ConnectionManager extends Subscriber<ConnectionLimitRuleChangeEvent
     @PostConstruct
     public void start() {
         
+        // 3/s 处理看起来不健康的节点，发送detect请求，有响应的就继续存活，否则移除连接
         // Start UnHealthy Connection Expel Task.
         RpcScheduledExecutor.COMMON_SERVER_EXECUTOR.scheduleWithFixedDelay(new Runnable() {
             @Override

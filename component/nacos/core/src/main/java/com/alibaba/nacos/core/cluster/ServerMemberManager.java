@@ -97,7 +97,7 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
     private static final long DEFAULT_TASK_DELAY_TIME = 5_000L;
     
     /**
-     * 所有节点，不包括自己
+     * 所有节点
      *
      * Cluster node list.
      */
@@ -121,6 +121,8 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
     /**
      * 集群节点查找
      *
+     * AddressServerMemberLookup 会5/s自动刷新
+     *
      * Addressing pattern instances.
      */
     private MemberLookup lookup;
@@ -138,6 +140,8 @@ public class ServerMemberManager implements ApplicationListener<WebServerInitial
     private volatile Set<String> memberAddressInfos = new ConcurrentHashSet<>();
     
     /**
+     * 3/s将当前节点的信息通知给集群的其他节点
+     *
      * Broadcast this node element information task.
      */
     private final MemberInfoReportTask infoReportTask = new MemberInfoReportTask();

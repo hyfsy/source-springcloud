@@ -67,8 +67,9 @@ public class DistroLoadDataTask implements Runnable {
         try {
             // 全量同步数据
             load();
-            // 数据没有全部都加载失败，再次提交当前任务
+            // 数据没有全部加载完成，需要再次提交当前任务
             if (!checkCompleted()) {
+                // 30/s
                 GlobalExecutor.submitLoadDataTask(this, distroConfig.getLoadDataRetryDelayMillis());
             } else {
                 // 通知DistroProtocol初始化完毕
@@ -109,7 +110,7 @@ public class DistroLoadDataTask implements Runnable {
                     resourceType, transportAgent, dataProcessor);
             return false;
         }
-        // 从所有节点中拉取数据，一个返回就算成功
+        // 从所有节点中拉取数据，一个返回就算成功，因为这个是全量的操作，所以一个成功就够了
         for (Member each : memberManager.allMembersWithoutSelf()) {
             try {
                 Loggers.DISTRO.info("[DISTRO-INIT] load snapshot {} from {}", resourceType, each.getAddress());
@@ -120,7 +121,7 @@ public class DistroLoadDataTask implements Runnable {
                 Loggers.DISTRO
                         .info("[DISTRO-INIT] load snapshot {} from {} result: {}", resourceType, each.getAddress(),
                                 result);
-                // 存储初始化完毕
+                // 存储初始化完毕，通知验证工作（临时节点的心跳续期）可以执行
                 if (result) {
                     distroComponentHolder.findDataStorage(resourceType).finishInitial();
                     // 从一个节点拉取到就同步结束

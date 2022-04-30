@@ -20,7 +20,7 @@ import com.alibaba.nacos.core.distributed.distro.entity.DistroData;
 import com.alibaba.nacos.core.distributed.distro.entity.DistroKey;
 
 /**
- * distro的http客户端
+ * distro的客户端通信代理，有http和rpc两种实现
  *
  * Distro transport agent.
  *

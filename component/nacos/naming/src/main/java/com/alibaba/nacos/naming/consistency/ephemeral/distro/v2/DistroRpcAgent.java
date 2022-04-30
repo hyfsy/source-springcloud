@@ -45,14 +45,15 @@ import java.util.concurrent.Executor;
  * Distro transport agent for v2.
  *
  * @author xiweng.yy
+ * @change DistroClientTransportAgent
  */
-public class DistroClientTransportAgent implements DistroTransportAgent {
+public class DistroRpcAgent implements DistroTransportAgent {
     
     private final ClusterRpcClientProxy clusterRpcClientProxy;
     
     private final ServerMemberManager memberManager;
     
-    public DistroClientTransportAgent(ClusterRpcClientProxy clusterRpcClientProxy,
+    public DistroRpcAgent(ClusterRpcClientProxy clusterRpcClientProxy,
             ServerMemberManager serverMemberManager) {
         this.clusterRpcClientProxy = clusterRpcClientProxy;
         this.memberManager = serverMemberManager;

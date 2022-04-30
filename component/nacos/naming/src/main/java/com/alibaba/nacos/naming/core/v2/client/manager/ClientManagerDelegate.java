@@ -41,6 +41,7 @@ public class ClientManagerDelegate implements ClientManager {
     
     private final PersistentIpPortClientManager persistentIpPortClientManager;
     
+    // 是否为临时标记
     private static final String SUFFIX = "false";
     
     public ClientManagerDelegate(ConnectionBasedClientManager connectionBasedClientManager,
@@ -97,13 +98,17 @@ public class ClientManagerDelegate implements ClientManager {
     }
     
     private ClientManager getClientManagerById(String clientId) {
-        if (isConnectionBasedClient(clientId)) {
+        if (isConnectionBasedClient(clientId) /* isRpc */) {
             return connectionBasedClientManager;
         }
         return clientId.endsWith(SUFFIX) ? persistentIpPortClientManager : ephemeralIpPortClientManager;
     }
     
     private boolean isConnectionBasedClient(String clientId) {
+        // rpc : connectTime_remoteIp_remotePort
+        //      @see BaseGrpcServer#TRANS_KEY_CONN_ID
+        // http: address#ephemeral
+        //      @see IpPortBasedClient#getClientId
         return !clientId.contains(IpPortBasedClient.ID_DELIMITER);
     }
 }

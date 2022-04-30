@@ -65,6 +65,8 @@ public class RpcClientFactory {
     }
     
     /**
+     * 客户端访问服务端使用
+     *
      * create a rpc client.
      *
      * @param clientName     client name.
@@ -88,6 +90,8 @@ public class RpcClientFactory {
     }
     
     /**
+     * 服务端的对等节点通信时使用的集群客户端
+     *
      * create a rpc client.
      *
      * @param clientName     client name.

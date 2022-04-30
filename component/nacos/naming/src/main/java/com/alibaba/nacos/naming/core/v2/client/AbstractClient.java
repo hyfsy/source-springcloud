@@ -64,6 +64,8 @@ public abstract class AbstractClient implements Client {
         if (null == publishers.put(service, instancePublishInfo)) {
             MetricsMonitor.incrementInstanceCount();
         }
+        // DistroClientDataProcessor
+        // distro,通知集群其他节点同步更新的实例数据
         NotifyCenter.publishEvent(new ClientEvent.ClientChangedEvent(this));
         Loggers.SRV_LOG.info("Client change for service {}, {}", service, getClientId());
         return true;
@@ -118,6 +120,7 @@ public abstract class AbstractClient implements Client {
     
     @Override
     public ClientSyncData generateSyncData() {
+        // 全量导出当前发布的四种元数据信息
         List<String> namespaces = new LinkedList<>();
         List<String> groupNames = new LinkedList<>();
         List<String> serviceNames = new LinkedList<>();

@@ -39,7 +39,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * 维护两个映射关系
+ * 存储所有的Service信息，内部包含了Instance信息
+ * <p>
+ * 主要通过维护的两个映射关系来获取
  *
  * Service storage.
  *
@@ -48,14 +50,15 @@ import java.util.concurrent.ConcurrentMap;
 @Component
 public class ServiceStorage {
     
-    // 服务索引，方便获取其他信息
+    // 客户端索引，方便直接获取客户端信息
     private final ClientServiceIndexesManager serviceIndexesManager;
     
-    // 客户端管理器
+    // 客户端管理器，通过clientId获取具体的客户端数据
     private final ClientManager clientManager;
     
     private final SwitchDomain switchDomain;
     
+    // 获取实例元数据信息
     private final NamingMetadataManager metadataManager;
     
     // service -> service and instances
@@ -83,6 +86,8 @@ public class ServiceStorage {
         return serviceDataIndexes.containsKey(service) ? serviceDataIndexes.get(service) : getPushData(service);
     }
     
+    // 新建一个service信息，包含所有的实例
+    // 一般用于服务端主动推送使用，需要保证最新的服务信息被推送，不使用缓存，同时每次推送也会更新本地缓存
     public ServiceInfo getPushData(Service service) {
         ServiceInfo result = emptyServiceInfo(service);
         // 服务没有注册过

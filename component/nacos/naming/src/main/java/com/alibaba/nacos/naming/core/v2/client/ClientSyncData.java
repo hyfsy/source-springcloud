@@ -22,6 +22,8 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
+ * 其他节点发过来的distro数据
+ *
  * Client sync data.
  *
  * @author xiweng.yy

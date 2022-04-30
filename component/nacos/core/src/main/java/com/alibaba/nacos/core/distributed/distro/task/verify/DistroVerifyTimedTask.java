@@ -54,6 +54,7 @@ public class DistroVerifyTimedTask implements Runnable {
             if (Loggers.DISTRO.isDebugEnabled()) {
                 Loggers.DISTRO.debug("server list is: {}", targetServer);
             }
+            // 暂时就rpc一个
             for (String each : distroComponentHolder.getDataStorageTypes()) {
                 verifyForDataStorage(each, targetServer);
             }
@@ -64,11 +65,13 @@ public class DistroVerifyTimedTask implements Runnable {
     
     private void verifyForDataStorage(String type, List<Member> targetServer) {
         DistroDataStorage dataStorage = distroComponentHolder.findDataStorage(type);
+        // 需要等到全量加载任务完毕后，这边才会为false，进行心跳检查工作，否则在这边就一直return
         if (!dataStorage.isFinishInitial()) {
             Loggers.DISTRO.warn("data storage {} has not finished initial step, do not send verify data",
                     dataStorage.getClass().getSimpleName());
             return;
         }
+        // List<local clientId>
         List<DistroData> verifyData = dataStorage.getVerifyData();
         if (null == verifyData || verifyData.isEmpty()) {
             return;

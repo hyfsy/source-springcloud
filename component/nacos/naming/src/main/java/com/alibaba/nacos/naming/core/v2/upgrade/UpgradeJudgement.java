@@ -193,6 +193,7 @@ public class UpgradeJudgement extends Subscriber<MembersChangeEvent> {
     
     private boolean checkForUpgrade() {
         if (!useGrpcFeatures.get()) {
+            // 检查两个模式下的服务数及实例数是否相等 & 是否还有双写任务
             boolean selfCheckResult = checkServiceAndInstanceNumber() && checkDoubleWriteStatus();
             Member self = memberManager.getSelf();
             self.setExtendVal(MemberMetaDataConstants.READY_TO_UPGRADE, selfCheckResult);

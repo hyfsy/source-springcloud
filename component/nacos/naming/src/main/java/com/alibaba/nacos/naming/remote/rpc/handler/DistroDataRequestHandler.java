@@ -32,7 +32,7 @@ import org.springframework.stereotype.Component;
 /**
  * Distro data request handler.
  *
- * distro协议的核心处理器
+ * distro协议的核心处理器，接受其他节点发来的distro rpc请求，并交由{@link DistroClientDataProcessor}处理
  *
  * @author xiweng.yy
  */
@@ -50,14 +50,18 @@ public class DistroDataRequestHandler extends RequestHandler<DistroDataRequest, 
         try {
             switch (request.getDataOperation()) {
                 case VERIFY:
+                    // 校验本地数据
                     return handleVerify(request.getDistroData(), meta);
                 case SNAPSHOT:
+                    // 返回本地快照数据
                     return handleSnapshot();
                 case ADD:
                 case CHANGE:
                 case DELETE:
+                    // 同步其他节点发来的数据
                     return handleSyncData(request.getDistroData());
                 case QUERY:
+                    // 返回本地的查询数据
                     return handleQueryData(request.getDistroData());
                 default:
                     return new DistroDataResponse();

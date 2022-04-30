@@ -55,7 +55,7 @@ public class NamingSubscriberServiceV2Impl extends SmartSubscriber implements Na
     
     private static final int PARALLEL_SIZE = 100;
     
-    // 管理所有客户端的信息
+    // 管理所有客户端的信息，可获取客户端信息
     private final ClientManager clientManager;
     
     // 客户端相关数据的索引

@@ -63,6 +63,7 @@ public class ServiceListRequestHandler extends RequestHandler<ServiceListRequest
     }
     
     private Collection<String> selectServiceWithGroupName(Collection<Service> serviceSet, String groupName) {
+        // 复制出一份来返回，不改变缓存的服务
         Collection<String> result = new HashSet<>(serviceSet.size());
         for (Service each : serviceSet) {
             if (Objects.equals(groupName, each.getGroup())) {

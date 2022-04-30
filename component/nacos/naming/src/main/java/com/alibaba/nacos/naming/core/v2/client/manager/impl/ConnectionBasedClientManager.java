@@ -119,6 +119,7 @@ public class ConnectionBasedClientManager extends ClientConnectionEventListener 
     @Override
     public boolean verifyClient(String clientId) {
         ConnectionBasedClient client = clients.get(clientId);
+        // 心跳续期
         if (null != client) {
             client.setLastRenewTime();
             return true;
@@ -126,6 +127,7 @@ public class ConnectionBasedClientManager extends ClientConnectionEventListener 
         return false;
     }
     
+    // 30s 过期非native的节点
     private static class ExpiredClientCleaner implements Runnable {
         
         private final ConnectionBasedClientManager clientManager;

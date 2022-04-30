@@ -31,8 +31,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class DistroTaskEngineHolder {
     
+    // 处理延迟任务的引擎，任务达到延迟处理时间后，交由下面的引擎来实际的处理
     private final DistroDelayTaskExecuteEngine delayTaskExecuteEngine = new DistroDelayTaskExecuteEngine();
     
+    // 真正处理任务的执行引擎
     private final DistroExecuteTaskExecuteEngine executeWorkersManager = new DistroExecuteTaskExecuteEngine();
     
     public DistroTaskEngineHolder(DistroComponentHolder distroComponentHolder) {

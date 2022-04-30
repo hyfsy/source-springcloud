@@ -44,7 +44,7 @@ public class PushDelayTaskExecuteEngine extends NacosDelayTaskExecuteEngine {
     
     private final NamingMetadataManager metadataManager;
 
-    // 使用了执行器
+    // 使用的执行器
     private final PushExecutor pushExecutor;
     
     // 是否开启推送

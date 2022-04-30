@@ -51,6 +51,7 @@ public class DistroVerifyExecuteTask extends AbstractExecuteTask {
     
     @Override
     public void run() {
+        // local clientId
         for (DistroData each : verifyData) {
             try {
                 if (transportAgent.supportCallbackTransport()) {

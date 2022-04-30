@@ -17,9 +17,12 @@
 package com.alibaba.nacos.naming.core.v2.event.client;
 
 import com.alibaba.nacos.common.notify.Event;
+import com.alibaba.nacos.naming.consistency.ephemeral.distro.v2.DistroClientDataProcessor;
 import com.alibaba.nacos.naming.core.v2.client.Client;
 
 /**
+ * 只是由临时节点触发及处理的事件，最终都交由{@link DistroClientDataProcessor}处理
+ *
  * Client event.
  *
  * @author xiweng.yy

@@ -52,6 +52,7 @@ public class FailoverClosureImpl implements FailoverClosure {
     
     @Override
     public void run(Status status) {
+        // 回调来设置结果值，让外层的阻塞恢复
         if (status.isOk()) {
             future.complete(data);
             return;

@@ -178,13 +178,14 @@ public class ServerLoaderController {
             ServerReloadRequest serverLoaderInfoRequest = new ServerReloadRequest();
             // 对应节点的限制数量
             serverLoaderInfoRequest.setReloadCount(overLimitCount);
-            // 对应节点的地址
+            // 对应节点的地址，设置一个客户端连接数少的服务端
             serverLoaderInfoRequest.setReloadServer(lowLimitServer.get(i).address);
             Member member = serverMemberManager.find(overLimitServer.get(i).address);
             
             LOGGER.info("Reload task submit ,fromServer ={},toServer={}, ", overLimitServer.get(i).address,
                     lowLimitServer.get(i).address);
             
+            // 通知自己，让客户端重置连接的时候，重置到连接数少的服务端上
             if (serverMemberManager.getSelf().equals(member)) {
                 try {
                     serverReloaderRequestHandler.handle(serverLoaderInfoRequest, new RequestMeta());

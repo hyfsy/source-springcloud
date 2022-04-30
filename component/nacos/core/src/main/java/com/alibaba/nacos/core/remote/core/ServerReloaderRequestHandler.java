@@ -56,6 +56,7 @@ public class ServerReloaderRequestHandler extends RequestHandler<ServerReloadReq
             response.setMessage("ignore");
         } else {
             reloadCount = (int) Math.max(reloadCount, sdkCount * (1 - RemoteUtils.LOADER_FACTOR));
+            // 更新为连接数少的服务端节点
             connectionManager.loadCount(reloadCount, request.getReloadServer());
             response.setMessage("ok");
         }

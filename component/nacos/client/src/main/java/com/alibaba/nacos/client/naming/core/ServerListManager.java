@@ -50,7 +50,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static com.alibaba.nacos.client.utils.LogUtils.NAMING_LOGGER;
 
 /**
- * Server list manager.
+ * Server list manager. - 注册中心使用
+ *
+ * 维护客户端可连接的服务端信息，数据可初始化指定，或 定时从endpoint拉取
  *
  * @author xiweng.yy
  */
@@ -94,6 +96,7 @@ public class ServerListManager implements ServerListFactory, Closeable {
             this.serversFromEndpoint = getServerListFromEndpoint();
             refreshServerListExecutor = new ScheduledThreadPoolExecutor(1,
                     new NameThreadFactory("com.alibaba.nacos.client.naming.server.list.refresher"));
+            // 30s刷新远端拉取服务端 ip:port
             refreshServerListExecutor
                     .scheduleWithFixedDelay(this::refreshServerListIfNeed, 0, refreshServerListInternal,
                             TimeUnit.MILLISECONDS);
@@ -140,6 +143,7 @@ public class ServerListManager implements ServerListFactory, Closeable {
                 NAMING_LOGGER.debug("server list provided by user: " + serverList);
                 return;
             }
+            // 30s刷新远端拉取服务端 ip:port
             if (System.currentTimeMillis() - lastServerListRefreshTime < refreshServerListInternal) {
                 return;
             }
@@ -173,6 +177,7 @@ public class ServerListManager implements ServerListFactory, Closeable {
     
     @Override
     public String genNextServer() {
+        // 轮询
         int index = currentIndex.incrementAndGet() % getServerList().size();
         return getServerList().get(index);
     }

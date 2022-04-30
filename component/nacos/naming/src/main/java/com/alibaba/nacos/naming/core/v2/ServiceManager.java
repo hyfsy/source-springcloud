@@ -33,9 +33,11 @@ public class ServiceManager {
     
     private static final ServiceManager INSTANCE = new ServiceManager();
     
+    // map用来方便原子操作
     // service -> self == singleton
     private final ConcurrentHashMap<Service, Service> singletonRepository;
     
+    // 方便通过命名空间批量获取服务列表
     // namespaceId -> serviceList
     private final ConcurrentHashMap<String, Set<Service>> namespaceSingletonMaps;
     

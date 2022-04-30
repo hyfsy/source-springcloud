@@ -51,7 +51,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 客户端获取服务端列表
+ * 客户端获取服务端列表-配置中心使用
  *
  * Serverlist Manager.
  *

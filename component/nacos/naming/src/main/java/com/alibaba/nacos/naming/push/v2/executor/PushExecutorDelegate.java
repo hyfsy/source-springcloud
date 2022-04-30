@@ -58,6 +58,7 @@ public class PushExecutorDelegate implements PushExecutor {
         if (result.isPresent()) {
             return result.get();
         }
+        // http的客户端使用udp推送
         // use nacos default push executor
         return clientId.contains(IpPortBasedClient.ID_DELIMITER) ? udpPushExecuteService : rpcPushExecuteService;
     }

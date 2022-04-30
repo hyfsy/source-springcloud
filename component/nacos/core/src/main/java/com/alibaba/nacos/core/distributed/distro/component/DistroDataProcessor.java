@@ -19,6 +19,8 @@ package com.alibaba.nacos.core.distributed.distro.component;
 import com.alibaba.nacos.core.distributed.distro.entity.DistroData;
 
 /**
+ * 处理其他节点发来的distro请求
+ *
  * Distro data processor.
  *
  * @author xiweng.yy

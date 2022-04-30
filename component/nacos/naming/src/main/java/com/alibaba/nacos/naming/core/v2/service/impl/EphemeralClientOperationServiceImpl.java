@@ -48,11 +48,15 @@ public class EphemeralClientOperationServiceImpl implements ClientOperationServi
     @Override
     public void registerInstance(Service service, Instance instance, String clientId) {
         Service singleton = ServiceManager.getInstance().getSingleton(service);
+        // 一个客户端代表当前的一个服务
         Client client = clientManager.getClient(clientId);
         InstancePublishInfo instanceInfo = getPublishInfo(instance);
+        // 发布服务更新事件，通知其他节点进行同步
         client.addServiceInstance(singleton, instanceInfo);
         client.setLastUpdatedTime();
+        // ClientServiceIndexesManager 通知其他客户端更新服务
         NotifyCenter.publishEvent(new ClientOperationEvent.ClientRegisterServiceEvent(singleton, clientId));
+        // NamingMetadataManager 更新实例的元数据信息，用于jraft快照恢复
         NotifyCenter
                 .publishEvent(new MetadataEvent.InstanceMetadataEvent(singleton, instanceInfo.getMetadataId(), false));
     }
@@ -80,6 +84,7 @@ public class EphemeralClientOperationServiceImpl implements ClientOperationServi
         Client client = clientManager.getClient(clientId);
         client.addServiceSubscriber(singleton, subscriber);
         client.setLastUpdatedTime();
+        // ClientServiceIndexesManager 更新索引
         NotifyCenter.publishEvent(new ClientOperationEvent.ClientSubscribeServiceEvent(singleton, clientId));
     }
     

@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * 死循环执行异步任务，确保任务一定成功
+ * 延迟任务的执行引擎，死循环执行异步任务，确保任务一定成功
  *
  * Nacos delay task execute engine.
  *

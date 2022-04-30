@@ -88,6 +88,7 @@ public class FeignLoadBalancer extends
 			throws IOException {
 		// 创建请求选项
 		Request.Options options;
+		// ribbon有配置，则直接使用ribbon的
 		if (configOverride != null) {
 			RibbonProperties override = RibbonProperties.from(configOverride);
 			options = new Request.Options(override.connectTimeout(connectTimeout),

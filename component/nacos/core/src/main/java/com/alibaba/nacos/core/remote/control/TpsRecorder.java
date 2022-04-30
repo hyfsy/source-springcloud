@@ -37,8 +37,10 @@ public class TpsRecorder {
     
     private int slotSize;
     
+    // 滑动窗口
     private List<TpsSlot> slotList;
     
+    // tps的限制
     private long maxCount = -1;
     
     private String model;

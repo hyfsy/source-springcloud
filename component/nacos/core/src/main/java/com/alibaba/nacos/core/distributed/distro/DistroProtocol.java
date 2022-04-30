@@ -68,7 +68,8 @@ public class DistroProtocol {
             isInitialized = true;
             return;
         }
-        // 全量验证
+        // 5/s定时全量验证，请求集群其他节点进行心跳续期，会注册当前Client为 isNative=false
+        // @see ClientManager#verifyClient
         startVerifyTask();
         // 第一次全量同步
         startLoadTask();
@@ -135,6 +136,7 @@ public class DistroProtocol {
     public void syncToTarget(DistroKey distroKey, DataOperation action, String targetServer, long delay) {
         DistroKey distroKeyWithTarget = new DistroKey(distroKey.getResourceKey(), distroKey.getResourceType(),
                 targetServer);
+        // 1/s
         DistroDelayTask distroDelayTask = new DistroDelayTask(distroKeyWithTarget, action, delay);
         distroTaskEngineHolder.getDelayTaskExecuteEngine().addTask(distroKeyWithTarget, distroDelayTask);
         if (Loggers.DISTRO.isDebugEnabled()) {
@@ -198,6 +200,7 @@ public class DistroProtocol {
             Loggers.DISTRO.warn("[DISTRO] Can't find verify data process for received data {}", resourceType);
             return false;
         }
+        // 请求集群其他节点进行临时客户端的心跳续期
         return dataProcessor.processVerifyData(distroData, sourceAddress);
     }
     

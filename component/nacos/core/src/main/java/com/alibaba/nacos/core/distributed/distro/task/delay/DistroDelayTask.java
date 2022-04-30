@@ -57,6 +57,7 @@ public class DistroDelayTask extends AbstractDelayTask {
         return createTime;
     }
     
+    // 将大批量的相同任务合并，减少网络通信次数
     @Override
     public void merge(AbstractDelayTask task) {
         if (!(task instanceof DistroDelayTask)) {

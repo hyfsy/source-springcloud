@@ -36,10 +36,11 @@ import javax.annotation.PostConstruct;
  * distro核心组件的注册，方便后续获取
  *
  * @author xiweng.yy
- * @see com.alibaba.nacos.naming.consistency.ephemeral.distro.v2.DistroClientComponentRegistry
+ * @see com.alibaba.nacos.naming.consistency.ephemeral.distro.v2.DistroRpcComponentRegistry
+ * @change DistroHttpRegistry
  */
 @Component
-public class DistroHttpRegistry {
+public class DistroHttpComponentRegistry {
     
     private final DistroComponentHolder componentHolder;
     
@@ -60,7 +61,7 @@ public class DistroHttpRegistry {
     // 方便获取集群节点
     private final ServerMemberManager memberManager;
     
-    public DistroHttpRegistry(DistroComponentHolder componentHolder, DistroTaskEngineHolder taskEngineHolder,
+    public DistroHttpComponentRegistry(DistroComponentHolder componentHolder, DistroTaskEngineHolder taskEngineHolder,
             DataStore dataStore, DistroMapper distroMapper, GlobalConfig globalConfig,
             DistroConsistencyServiceImpl consistencyService, ServerMemberManager memberManager) {
         this.componentHolder = componentHolder;

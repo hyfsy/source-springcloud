@@ -36,6 +36,8 @@ import static com.alibaba.nacos.naming.core.v2.upgrade.doublewrite.delay.DoubleW
 import static com.alibaba.nacos.naming.core.v2.upgrade.doublewrite.delay.DoubleWriteContent.METADATA;
 
 /**
+ * 服务实例和服务元数据的双写，v2-> v1
+ *
  * Event listener for double write.
  *
  * @author xiweng.yy
@@ -70,6 +72,8 @@ public class DoubleWriteEventListener extends Subscriber<ServiceEvent.ServiceCha
         if (!upgradeJudgement.isUseGrpcFeatures()) {
             return;
         }
+        
+        // 新的服务数据写入v1
         String taskKey = ServiceChangeV2Task.getKey(event.getService());
         ServiceChangeV2Task task = new ServiceChangeV2Task(event.getService(), DoubleWriteContent.INSTANCE);
         doubleWriteDelayTaskEngine.addTask(taskKey, task);

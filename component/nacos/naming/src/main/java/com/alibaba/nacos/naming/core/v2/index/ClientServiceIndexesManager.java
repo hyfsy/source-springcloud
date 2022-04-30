@@ -125,6 +125,8 @@ public class ClientServiceIndexesManager extends SmartSubscriber {
     private void addPublisherIndexes(Service service, String clientId) {
         publisherIndexes.computeIfAbsent(service, (key) -> new ConcurrentHashSet<>());
         publisherIndexes.get(service).add(clientId);
+        // 主动推送通知客户端服务信息变更
+        // @see NamingSubscriberServiceV2Impl
         NotifyCenter.publishEvent(new ServiceEvent.ServiceChangedEvent(service, true));
     }
     
@@ -133,6 +135,8 @@ public class ClientServiceIndexesManager extends SmartSubscriber {
             return;
         }
         publisherIndexes.get(service).remove(clientId);
+        // 主动推送通知客户端服务信息变更
+        // @see NamingSubscriberServiceV2Impl
         NotifyCenter.publishEvent(new ServiceEvent.ServiceChangedEvent(service, true));
     }
     
@@ -140,6 +144,8 @@ public class ClientServiceIndexesManager extends SmartSubscriber {
         subscriberIndexes.computeIfAbsent(service, (key) -> new ConcurrentHashSet<>());
         // Fix #5404, Only first time add need notify event.
         if (subscriberIndexes.get(service).add(clientId)) {
+            // 主动推送通知客户端服务信息变更
+            // @see NamingSubscriberServiceV2Impl
             NotifyCenter.publishEvent(new ServiceEvent.ServiceSubscribedEvent(service, clientId));
         }
     }

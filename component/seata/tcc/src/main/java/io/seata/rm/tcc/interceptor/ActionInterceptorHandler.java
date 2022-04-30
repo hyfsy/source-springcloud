@@ -121,6 +121,7 @@ public class ActionInterceptorHandler {
         //init applicationData
         Map<String, Object> applicationContext = new HashMap<>(4);
         applicationContext.put(Constants.TCC_ACTION_CONTEXT, context);
+        // TCC执行的相关业务数据，发到TC端保存起来
         String applicationContextStr = JSON.toJSONString(applicationContext);
         // 分支注册
         try {

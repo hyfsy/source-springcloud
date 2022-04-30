@@ -46,7 +46,8 @@ public class DistroSyncDeleteTask extends AbstractDistroExecuteTask {
         DistroData distroData = new DistroData();
         distroData.setDistroKey(getDistroKey());
         distroData.setType(OPERATION);
-        // 通过传输代理发起http请求
+        // 通过传输代理发起请求
+        // DistroClientTransportAgent
         return getDistroComponentHolder().findTransportAgent(type)
                 .syncData(distroData, getDistroKey().getTargetServer());
     }
@@ -57,7 +58,8 @@ public class DistroSyncDeleteTask extends AbstractDistroExecuteTask {
         DistroData distroData = new DistroData();
         distroData.setDistroKey(getDistroKey());
         distroData.setType(OPERATION);
-        // 通过传输代理发起http请求
+        // 通过传输代理发起请求
+        // DistroClientTransportAgent
         getDistroComponentHolder().findTransportAgent(type)
                 .syncData(distroData, getDistroKey().getTargetServer(), callback);
     }

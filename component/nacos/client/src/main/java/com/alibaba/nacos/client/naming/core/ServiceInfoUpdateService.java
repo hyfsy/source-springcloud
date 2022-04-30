@@ -173,7 +173,7 @@ public class ServiceInfoUpdateService implements Closeable {
                 
                 // 本地查询下服务信息
                 ServiceInfo serviceObj = serviceInfoHolder.getServiceInfoMap().get(serviceKey);
-                // 没有就请求下服务端获取下
+                // 没有就请求服务端获取
                 if (serviceObj == null) {
                     serviceObj = namingClientProxy.queryInstancesOfService(serviceName, groupName, clusters, 0, false);
                     // 更新
@@ -200,6 +200,7 @@ public class ServiceInfoUpdateService implements Closeable {
                 NAMING_LOGGER.warn("[NA] failed to update serviceName: " + groupedServiceName, e);
             } finally {
                 // 不断更新
+                // 15s 随着失败次数的增多而增多，最多60s
                 executor.schedule(this, Math.min(delayTime << failCount, DEFAULT_DELAY * 60), TimeUnit.MILLISECONDS);
             }
         }

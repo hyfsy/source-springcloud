@@ -24,6 +24,10 @@ import com.alibaba.nacos.core.distributed.distro.task.delay.DistroDelayTask;
 import com.alibaba.nacos.naming.misc.GlobalConfig;
 
 /**
+ * 临时节点使用，用于将延迟任务转变为实际可执行的任务，有种死信队列的感觉
+ * <p>
+ * 实际的处理交由 {@link com.alibaba.nacos.core.distributed.distro.task.delay.DistroDelayTaskProcessor}处理
+ * <p>
  * Distro http task processor.
  *
  * <p>

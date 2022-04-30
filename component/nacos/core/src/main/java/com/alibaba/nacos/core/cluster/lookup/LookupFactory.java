@@ -114,9 +114,11 @@ public final class LookupFactory {
             }
         }
         File file = new File(EnvUtil.getClusterConfFilePath());
+        // 文件或存在环境变量，则先查询文件
         if (file.exists() || StringUtils.isNotBlank(EnvUtil.getMemberList())) {
             return LookupType.FILE_CONFIG;
         }
+        // 否则地址表查询
         return LookupType.ADDRESS_SERVER;
     }
     

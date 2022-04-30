@@ -286,6 +286,7 @@ public abstract class RpcClient implements Closeable {
             }
         });
         
+        // 连接启用、停用
         // connection event consumer.
         clientEventExecutor.submit(new Runnable() {
             @Override
@@ -322,6 +323,7 @@ public abstract class RpcClient implements Closeable {
                         if (reconnectContext == null) {
                             //check alive time.
                             if (System.currentTimeMillis() - lastActiveTimeStamp >= keepAliveTime) {
+                                // 既用户自己到服务端的健康检查，又用作服务端的健康检查
                                 boolean isHealthy = healthCheck();
                                 if (!isHealthy) {
                                     if (currentConnection == null) {
@@ -496,6 +498,8 @@ public abstract class RpcClient implements Closeable {
         switchServerAsync(null, false);
     }
     
+    // 客户端连接重置，重新选择一个服务端进行连接
+    // 如果serverInfo指定连接的客户端，则通过指定的连接，否则通过ServerListManager轮询下一个
     protected void switchServerAsync(final ServerInfo recommendServerInfo, boolean onRequestFail) {
         reconnectionSignal.offer(new ReconnectContext(recommendServerInfo, onRequestFail));
     }

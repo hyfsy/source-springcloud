@@ -264,7 +264,7 @@ public abstract class GrpcClient extends RpcClient {
             int port = serverInfo.getServerPort() + rpcPortOffset();
             RequestGrpc.RequestFutureStub newChannelStubTemp = createNewChannelStub(serverInfo.getServerIp(), port);
             if (newChannelStubTemp != null) {
-                // 检查服务端是否可以连接上
+                // 检查服务端是否可以连接上，可以的话，会返回服务端创建出的connId，客户端在此进行维护
                 Response response = serverCheck(serverInfo.getServerIp(), port, newChannelStubTemp);
                 if (response == null || !(response instanceof ServerCheckResponse)) {
                     shuntDownChannel((ManagedChannel) newChannelStubTemp.getChannel());
@@ -274,6 +274,7 @@ public abstract class GrpcClient extends RpcClient {
                 BiRequestStreamGrpc.BiRequestStreamStub biRequestStreamStub = BiRequestStreamGrpc
                         .newStub(newChannelStubTemp.getChannel());
                 GrpcConnection grpcConn = new GrpcConnection(serverInfo, grpcExecutor);
+                // 设置连接ID
                 grpcConn.setConnectionId(((ServerCheckResponse) response).getConnectionId());
                 
                 //create stream request and bind connection event to this connection.
@@ -284,7 +285,7 @@ public abstract class GrpcClient extends RpcClient {
                 grpcConn.setGrpcFutureServiceStub(newChannelStubTemp);
                 grpcConn.setChannel((ManagedChannel) newChannelStubTemp.getChannel());
                 //send a  setup request.
-                // 将当前链接注册到服务端
+                // 将当前连接注册到服务端
                 ConnectionSetupRequest conSetupRequest = new ConnectionSetupRequest();
                 conSetupRequest.setClientVersion(VersionUtils.getFullClientVersion());
                 conSetupRequest.setLabels(super.getLabels());

@@ -17,6 +17,8 @@
 package com.alibaba.nacos.common.task;
 
 /**
+ * 延迟任务，支持将大批量的相同任务合并，减少网络通信次数，通过 {@link #shouldProcess} 决定
+ * <p>
  * Abstract task which can delay and merge.
  *
  * @author huali
@@ -40,6 +42,8 @@ public abstract class AbstractDelayTask implements NacosTask {
     protected static final long INTERVAL = 1000L;
     
     /**
+     * 将大批量的相同任务合并，减少网络通信次数
+     *
      * merge task.
      *
      * @param task task

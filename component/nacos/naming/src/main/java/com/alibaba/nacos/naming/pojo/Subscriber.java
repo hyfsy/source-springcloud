@@ -22,6 +22,8 @@ import java.io.Serializable;
 import java.util.Objects;
 
 /**
+ * 服务端的订阅信息
+ *
  * Subscriber.
  *
  * @author nicholas
