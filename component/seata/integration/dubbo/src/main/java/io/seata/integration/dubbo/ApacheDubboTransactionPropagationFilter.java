@@ -50,10 +50,13 @@ public class ApacheDubboTransactionPropagationFilter implements Filter {
             LOGGER.debug("xid in RootContext[{}] xid in RpcContext[{}]", xid, rpcXid);
         }
         boolean bind = false;
+        // 客户端执行
         if (xid != null) {
             RpcContext.getContext().setAttachment(RootContext.KEY_XID, xid);
             RpcContext.getContext().setAttachment(RootContext.KEY_BRANCH_TYPE, branchType.name());
-        } else {
+        }
+        // 服务端执行
+        else {
             if (rpcXid != null) {
                 RootContext.bind(rpcXid);
                 if (StringUtils.equals(BranchType.TCC.name(), rpcBranchType)) {
@@ -68,6 +71,7 @@ public class ApacheDubboTransactionPropagationFilter implements Filter {
         try {
             return invoker.invoke(invocation);
         } finally {
+            // 服务端执行完毕要清空
             if (bind) {
                 BranchType previousBranchType = RootContext.getBranchType();
                 String unbindXid = RootContext.unbind();

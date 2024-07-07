@@ -28,6 +28,7 @@
 
     <artifactId>apm-sdk-plugin</artifactId>
     <modules>
+        <module>hyf-plugin</module>
         <module>dubbo-plugin</module>
         <module>jdbc-commons</module>
         <module>httpClient-4.x-plugin</module>

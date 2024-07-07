@@ -26,6 +26,7 @@ import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.InstanceM
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.MethodInterceptResult;
 import org.apache.skywalking.apm.util.StringUtil;
 import sun.net.www.MessageHeader;
+import sun.net.www.http.HttpClient;
 
 import java.lang.reflect.Method;
 

@@ -90,6 +90,14 @@ public class WarmUpController implements TrafficShapingController {
 
         this.coldFactor = coldFactor;
 
+        // warmUpPeriodInSec 10
+        // count             10
+        // warmUpPeriodInSec * count = 100
+        // cold  2     3     4     5
+        // warn  100   50    33    25
+        // max   166   100   73    58
+        // slope 1/660 1/250 1/120 1/75
+
         // thresholdPermits = 0.5 * warmupPeriod / stableInterval.
         // warningToken = 100;
         warningToken = (int)(warmUpPeriodInSec * count) / (coldFactor - 1);

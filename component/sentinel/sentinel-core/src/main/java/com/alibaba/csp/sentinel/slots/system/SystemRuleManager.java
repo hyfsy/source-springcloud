@@ -333,9 +333,14 @@ public final class SystemRuleManager {
 
     private static boolean checkBbr(int currentThread) {
         if (currentThread > 1 &&
-            currentThread > Constants.ENTRY_NODE.maxSuccessQps() * Constants.ENTRY_NODE.minRt() / 1000) {
+            currentThread > /* 网络最大吞吐 */ Constants.ENTRY_NODE.maxSuccessQps() * Constants.ENTRY_NODE.minRt() / 1000) {
+
+            // 当前进来的入口流量比最大吞吐还要大，说明RTT很低，则同意放行
+
             return false;
         }
+
+        // 入口几乎没流量，说明网络拥塞严重
         return true;
     }
 

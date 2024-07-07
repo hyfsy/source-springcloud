@@ -221,6 +221,7 @@ public class InstanceOperatorServiceImpl implements InstanceOperator {
         
         double threshold = service.getProtectThreshold();
         List<Instance> hosts;
+        // 活跃的实例小于配置的服务阈值
         if ((float) ipMap.get(Boolean.TRUE).size() / total <= threshold) {
             
             Loggers.SRV_LOG.warn("protect threshold reached, return all ips, service: {}", result.getName());

@@ -67,6 +67,7 @@ public class WeightCalculatorWebFilter implements WebFilter, Ordered, SmartAppli
 
 	private int order = WEIGHT_CALC_FILTER_ORDER;
 
+	/** group -> config */
 	private Map<String, GroupWeightConfig> groupWeights = new ConcurrentHashMap<>();
 
 	private final AtomicBoolean routeLocatorInitialized = new AtomicBoolean();
@@ -259,12 +260,16 @@ public class WeightCalculatorWebFilter implements WebFilter, Ordered, SmartAppli
 
 		String group;
 
+		/** routeId -> weight */
 		LinkedHashMap<String, Integer> weights = new LinkedHashMap<>();
 
+		/** routeId -> weightPercent */
 		LinkedHashMap<String, Double> normalizedWeights = new LinkedHashMap<>();
 
+		/** 0-x -> routeId */
 		LinkedHashMap<Integer, String> rangeIndexes = new LinkedHashMap<>();
 
+		/** 0.0, 2.0, 10.0 */
 		List<Double> ranges = new ArrayList<>();
 
 		GroupWeightConfig(String group) {
